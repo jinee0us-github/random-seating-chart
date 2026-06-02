@@ -2,8 +2,9 @@
 // 진입점: 상태 + 에디터 + 배치 + 렌더 + 저장 + 이벤트 연결
 import './styles/main.css';
 import { DEFAULTS } from './config';
-import { toast, uiConfirm, uiAlert, showTab, showLoading, hideLoading, initTheme, toggleTheme } from './ui';
+import { toast, uiConfirm, uiAlert, uiSelect, showTab, showLoading, hideLoading, initTheme, toggleTheme } from './ui';
 import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryXlsx } from './excel';
+import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
 
 
   // ===== 기본값 =====
@@ -24,6 +25,9 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
   let periodLayouts = [];   // 회차별 좌석 배열 스냅샷
   let currentAssignment = null;
   let displayedAssignment = null;
+  let pinnedSeats = {};        // 고정석: { [seat]: studentName }
+  let separationGroups = [];   // 분리: string[][]
+  let slotAnim = true;         // 추첨 애니메이션 on/off
 
   // 에디터 상태
   let editMode = 'seat';
@@ -33,15 +37,12 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
   let editorMale = new Set();
   let editorPartners = [];
   let partnerSelection = new Set();
+  let editorPins = {};         // 에디터 고정석 미러
+  let editorSeparation = [];   // 에디터 분리 그룹 미러
+  let sepSelection = new Set(); // 분리 섹션에서 선택된 학생 이름
 
   // ===== 유틸 =====
   function colLetter(i){ return String.fromCharCode(65 + i); }
-  
-  function buildSeatOrder(cols, rows, active){
-    const order = [];
-    for(const c of cols){ for(let r=1;r<=rows;r++){ const l=c+r; if(active.has(l)) order.push(l);} }
-    return order;
-  }
 
 
   function loadDefaults(silent){
@@ -54,6 +55,8 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       document.getElementById('ruleHistoryDup').checked = true;
       document.getElementById('ruleMaleExempt').checked = true;
       document.getElementById('ruleMaxTries').value = 2000000;
+      slotAnim = true;
+      if(document.getElementById('ruleSlotAnim')) document.getElementById('ruleSlotAnim').checked = true;
     }
     editorColumns = DEFAULTS.columns.slice();
     editorMaxRows = DEFAULTS.maxRows;
@@ -62,6 +65,9 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     editorMale = new Set();
     editorPartners = [];
     partnerSelection.clear();
+    editorPins = {};
+    editorSeparation = [];
+    sepSelection.clear();
     renderEditor();
     applySettings(true);
     if(!silent) toast('기본값을 불러왔습니다.');
@@ -316,7 +322,8 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       readRules();
       const data={columns,maxRows,activeSeats:[...activeSeats],maleOnlySeats:[...maleOnlySeats],
         partnerGroups,maleStudents,femaleStudents,seatHistory,periods,periodLayouts,
-        rules:{ruleWindow,ruleHistoryDup,ruleMaleExempt,ruleMaxTries}};
+        pinnedSeats,separationGroups,
+        rules:{ruleWindow,ruleHistoryDup,ruleMaleExempt,ruleMaxTries,slotAnim}};
       localStorage.setItem(LS_KEY, JSON.stringify(data));
     }catch(e){}
   }
@@ -327,6 +334,8 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       columns=d.columns.slice(); maxRows=d.maxRows;
       activeSeats=new Set(d.activeSeats||[]); maleOnlySeats=new Set(d.maleOnlySeats||[]);
       partnerGroups=(d.partnerGroups||[]).map(g=>g.slice());
+      pinnedSeats=d.pinnedSeats||{};
+      separationGroups=(d.separationGroups||[]).map(g=>g.slice());
       seatOrder=buildSeatOrder(columns,maxRows,activeSeats);
       maleStudents=(d.maleStudents||[]).slice(); femaleStudents=(d.femaleStudents||[]).slice();
       students=maleStudents.concat(femaleStudents);
@@ -334,6 +343,9 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       editorColumns=columns.slice(); editorMaxRows=maxRows;
       editorActive=new Set(activeSeats); editorMale=new Set(maleOnlySeats);
       editorPartners=partnerGroups.map(g=>g.slice()); partnerSelection.clear();
+      editorPins={...pinnedSeats};
+      editorSeparation=separationGroups.map(g=>g.slice());
+      sepSelection.clear();
       document.getElementById('maleInput').value=maleStudents.join(',');
       document.getElementById('femaleInput').value=femaleStudents.join(',');
       document.getElementById('colCount').value=columns.length;
@@ -344,6 +356,8 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
         document.getElementById('ruleHistoryDup').checked = r.ruleHistoryDup!==false;
         document.getElementById('ruleMaleExempt').checked = r.ruleMaleExempt!==false;
         document.getElementById('ruleMaxTries').value = (r.ruleMaxTries!=null?r.ruleMaxTries:2000000);
+        slotAnim = (r.slotAnim!==false);
+        if(document.getElementById('ruleSlotAnim')) document.getElementById('ruleSlotAnim').checked = slotAnim;
       }
       renderEditor(); renderSeatGrid(null); renderSeatInfo(); showHistory();
       return true;
@@ -357,6 +371,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     const h=document.getElementById('ruleHistoryDup'); if(h) ruleHistoryDup=h.checked;
     const m=document.getElementById('ruleMaleExempt'); if(m) ruleMaleExempt=m.checked;
     const t=document.getElementById('ruleMaxTries'); if(t) ruleMaxTries=Math.max(1000, parseInt(t.value)||2000000);
+    const sa=document.getElementById('ruleSlotAnim'); if(sa) slotAnim=sa.checked;
   }
 
   // 성별 판별
