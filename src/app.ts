@@ -1,7 +1,9 @@
+// @ts-nocheck
 // 진입점: 상태 + 에디터 + 배치 + 렌더 + 저장 + 이벤트 연결
-import { DEFAULTS } from './config.js';
-import { parseCSV, escapeCSVCell, classifyGender } from './csv.js';
-import { toast, uiConfirm, uiAlert, showTab, showLoading, hideLoading, initTheme, toggleTheme } from './ui.js';
+import './styles/main.css';
+import { DEFAULTS } from './config';
+import { toast, uiConfirm, uiAlert, showTab, showLoading, hideLoading, initTheme, toggleTheme } from './ui';
+import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryXlsx } from './excel';
 
 
   // ===== 기본값 =====
@@ -92,6 +94,17 @@ import { toast, uiConfirm, uiAlert, showTab, showLoading, hideLoading, initTheme
     document.getElementById('groupBtn').style.display = (m==='partner') ? 'inline-flex' : 'none';
     if(m!=='partner'){ partnerSelection.clear(); }
     renderEditor();
+  }
+
+  function stepCol(d){
+    const el=document.getElementById('colCount');
+    el.value = Math.max(1, Math.min(10, (parseInt(el.value)||1)+d));
+    rebuildEditor();
+  }
+  function stepRow(d){
+    const el=document.getElementById('rowCount');
+    el.value = Math.max(1, Math.min(12, (parseInt(el.value)||1)+d));
+    rebuildEditor();
   }
 
   function rebuildEditor(){
@@ -551,110 +564,48 @@ import { toast, uiConfirm, uiAlert, showTab, showLoading, hideLoading, initTheme
     }
   }
 
-  // ===== CSV =====
+  // ===== 엑셀 입출력 =====
   
   function exportCSV(){
     if(periods.length===0){ toast('내보낼 히스토리가 없습니다.'); return; }
-    const header = ['회차', ...seatOrder];
-    const rows = [header.map(escapeCSVCell).join(',')];
-    for(let i=0;i<periods.length;i++){
-      const row=[periods[i]];
-      for(const seat of seatOrder){ row.push(Object.keys(seatHistory).find(s=>seatHistory[s][i]===seat)||''); }
-      rows.push(row.map(escapeCSVCell).join(','));
-    }
-    const blob = new Blob(['﻿'+rows.join('\r\n')], {type:'text/csv;charset=utf-8;'});
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob); link.download='seatHistory.csv'; link.click();
-    toast('CSV를 내보냈습니다.');
+    exportHistoryXlsx({periods, seatOrder, seatHistory});
+    toast('엑셀로 내보냈습니다.');
   }
 
-  // ===== 명단 CSV 불러오기 (이름,성별) =====
+  // ===== 명단 엑셀 불러오기 =====
   
-  function importRoster(event){
+  async function importRoster(event){
     const file=event.target.files[0]; if(!file) return;
-    const reader=new FileReader();
-    reader.onload=e=>{
-      try{
-        let text=e.target.result; if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
-        const rows=parseCSV(text);
-        if(rows.length===0){ uiAlert('CSV가 비어 있습니다.'); return; }
-        let nameIdx=0, genderIdx=1, startRow=0;
-        const h=rows[0].map(c=>(c||'').trim());
-        const ni=h.findIndex(c=>c.includes('이름')||c.toLowerCase()==='name');
-        const gi=h.findIndex(c=>c.includes('성별')||['gender','sex'].includes(c.toLowerCase()));
-        if(ni!==-1 && gi!==-1){ nameIdx=ni; genderIdx=gi; startRow=1; }
-        const males=[], females=[], unknown=[];
-        for(let i=startRow;i<rows.length;i++){
-          const r=rows[i]; if(!r) continue;
-          const name=(r[nameIdx]||'').trim(); if(!name) continue;
-          const g=classifyGender(r[genderIdx]);
-          if(g==='male') males.push(name);
-          else if(g==='female') females.push(name);
-          else unknown.push(name);
-        }
-        if(males.length+females.length===0){ uiAlert('이름/성별을 인식하지 못했습니다.\n성별은 남/여 또는 M/F로 입력해주세요.'); return; }
-        document.getElementById('maleInput').value=males.join(',');
-        document.getElementById('femaleInput').value=females.join(',');
-        event.target.value='';
-        let msg=`명단 불러옴: 남 ${males.length} · 여 ${females.length}. '설정 적용'을 눌러주세요.`;
-        if(unknown.length) msg+=` (성별 미인식 ${unknown.length}명 제외)`;
-        toast(msg);
-      }catch(err){ uiAlert('CSV 읽기 오류: '+err.message); }
-    };
-    reader.readAsText(file,'UTF-8');
-  }
-  function downloadRosterTemplate(){
-    const rows=[['이름','성별'],['홍길동','남'],['김철수','남'],['김영희','여'],['박수진','여']];
-    const csv=rows.map(r=>r.map(escapeCSVCell).join(',')).join('\r\n');
-    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-    const link=document.createElement('a'); link.href=URL.createObjectURL(blob); link.download='명단양식.csv'; link.click();
+    try{
+      const {males,females,unknown}=await readRosterXlsx(file);
+      if(males.length+females.length===0){ uiAlert('이름/성별을 인식하지 못했습니다.\n성별은 남/여 또는 M/F로 입력해주세요.'); return; }
+      document.getElementById('maleInput').value=males.join(',');
+      document.getElementById('femaleInput').value=females.join(',');
+      event.target.value='';
+      let msg=`명단 불러옴: 남 ${males.length} · 여 ${females.length}. '설정 적용'을 눌러주세요.`;
+      if(unknown.length) msg+=` (성별 미인식 ${unknown.length}명 제외)`;
+      toast(msg);
+    }catch(err){ uiAlert('엑셀 읽기 오류: '+((err&&err.message)||err)); }
   }
 
-  function importCSV(event){
-    const file = event.target.files[0]; if(!file) return;
-    const reader = new FileReader();
-    reader.onload = function(e){
-      try{
-        let text = e.target.result;
-        if(text.charCodeAt(0)===0xFEFF) text = text.slice(1);
-        const lines = parseCSV(text);
-        if(lines.length<2){ uiAlert('CSV 파일이 비어있거나 형식이 올바르지 않습니다.'); return; }
-        const header = lines[0];
-        if(header[0]!=='회차'){ uiAlert("CSV 형식이 올바르지 않습니다. 첫 열은 '회차'여야 합니다."); return; }
-        // 헤더의 좌석 목록으로 좌석 구조 복원
-        const importedSeats = header.slice(1).filter(Boolean);
-        if(importedSeats.length){
-          // 좌석 라벨로부터 열/행 추론
-          const cols = new Set(), rows = new Set();
-          importedSeats.forEach(s=>{ const m=s.match(/^([A-Z]+)(\d+)$/); if(m){cols.add(m[1]); rows.add(parseInt(m[2]));} });
-          columns = [...cols].sort();
-          maxRows = Math.max(...rows, 1);
-          activeSeats = new Set(importedSeats);
-          seatOrder = buildSeatOrder(columns, maxRows, activeSeats);
-        }
-        periods = []; seatHistory = {};
-        for(let i=1;i<lines.length;i++){
-          const row = lines[i];
-          if(!row.length || !row[0]) continue;
-          periods.push(row[0]);
-          for(let j=0;j<importedSeats.length;j++){
-            const seat = importedSeats[j];
-            const st = row[j+1] || '';
-            if(st){ if(!seatHistory[st]) seatHistory[st]=[]; seatHistory[st].push(seat); }
-          }
-        }
-        renderSeatGrid(null); renderSeatInfo(); showHistory();
-        persist();
-        toast(`${periods.length}개 회차를 불러왔습니다.`);
-        event.target.value = '';
-      }catch(err){ uiAlert('CSV 읽기 오류: '+err.message); }
-    };
-    reader.readAsText(file, 'UTF-8');
+
+  async function importCSV(event){
+    const file=event.target.files[0]; if(!file) return;
+    try{
+      const d=await readHistoryXlsx(file);
+      columns=d.columns; maxRows=d.maxRows; activeSeats=new Set(d.activeSeats);
+      seatOrder=buildSeatOrder(columns, maxRows, activeSeats);
+      periods=d.periods; seatHistory=d.seatHistory;
+      renderSeatGrid(null); renderSeatInfo(); showHistory(); persist();
+      toast(`${periods.length}개 회차를 불러왔습니다.`);
+      event.target.value='';
+    }catch(err){ uiAlert('엑셀 읽기 오류: '+((err&&err.message)||err)); }
   }
 
   // ===== 이벤트 연결 (인라인 핸들러 대체) =====
   function wireEvents(){
     const A={assignSeats,saveArrangement,exportImage,applySettings,loadDefaults,
+      colPlus:()=>stepCol(1), colMinus:()=>stepCol(-1), rowPlus:()=>stepRow(1), rowMinus:()=>stepRow(-1),
       createGroupFromSelection,fillAllSeats,clearAllSeats,downloadRosterTemplate,exportCSV,toggleTheme,
       print:()=>window.print(),
       pickRoster:()=>document.getElementById('rosterFile').click(),

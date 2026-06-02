@@ -1,3 +1,4 @@
+// @ts-nocheck
 // UI 헬퍼 (DOM 전용)
 export function toast(msg){
     const t = document.getElementById('toast');

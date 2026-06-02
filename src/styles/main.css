@@ -273,3 +273,17 @@
 :root[data-theme="dark"] .seat.male-only{ border-color:#3a3f6a; }
 :root[data-theme="dark"] .seat.empty{ background:transparent; }
 :root[data-theme="dark"] .sw[style*="#fff"]{ background:var(--card) !important; border-color:var(--line) !important; }
+
+/* ===== 행/열 스텝퍼 ===== */
+.stepper{display:inline-flex; align-items:stretch; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fbfbfe;}
+.stepper input[type=number]{width:56px; text-align:center; border:none; border-radius:0; background:transparent; -moz-appearance:textfield;}
+.stepper input[type=number]::-webkit-outer-spin-button,
+.stepper input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+.stepper input:focus{box-shadow:none; outline:none;}
+.step-btn{border:none; background:var(--accent-soft); color:var(--accent); width:40px; font-size:20px; font-weight:800;
+  line-height:1; cursor:pointer; font-family:inherit; transition:background .12s;}
+.step-btn:hover{background:#e3e6ff;}
+.step-btn:active{background:#d7dbff;}
+:root[data-theme="dark"] .stepper{background:#11141c;}
+:root[data-theme="dark"] .step-btn{background:#2a2f3c; color:var(--text);}
+:root[data-theme="dark"] .step-btn:hover{background:#333a48;}

@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>랜덤 자리 배치</title>
-  <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
 <div id="loadingOverlay"><div class="loading-content"><div class="spinner"></div><div class="loading-text">자리를 배치하는 중입니다…</div></div></div>
@@ -62,11 +61,11 @@
           </div>
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
-          <input type="file" id="rosterFile" accept=".csv" style="display:none">
-          <button class="btn btn-soft btn-sm" data-action="pickRoster">📄 CSV로 명단 불러오기</button>
+          <input type="file" id="rosterFile" accept=".xlsx,.xls" style="display:none">
+          <button class="btn btn-soft btn-sm" data-action="pickRoster">📄 엑셀로 명단 불러오기</button>
           <button class="btn btn-soft btn-sm" data-action="downloadRosterTemplate">⬇️ 명단 양식 받기</button>
         </div>
-        <p class="hint" style="margin-top:8px;">CSV 양식: 첫 행 머리글 <b>이름, 성별</b> · 성별은 <b>남/여</b>(또는 M/F). 불러온 뒤 <b>설정 적용</b>을 눌러주세요.</p>
+        <p class="hint" style="margin-top:8px;">엑셀 양식: 첫 행 머리글 <b>이름, 성별</b> · 성별은 <b>남/여</b>(또는 M/F). 불러온 뒤 <b>설정 적용</b>을 눌러주세요.</p>
       </div>
 
       <!-- 좌석 배열 -->
@@ -74,12 +73,20 @@
         <label class="fld">좌석 배열 (열 = 알파벳 자동, 행 = 숫자)</label>
         <div class="toolbar" style="justify-content:flex-start;">
           <div class="col">
-            <label class="fld" style="margin:0;">열 개수</label>
-            <input type="number" id="colCount" min="1" max="10" value="4" style="width:90px;">
+            <label class="fld" style="margin:0;">열 개수 (A·B·C…)</label>
+            <div class="stepper">
+              <button class="step-btn" data-action="colMinus" aria-label="열 줄이기">−</button>
+              <input type="number" id="colCount" min="1" max="10" value="4">
+              <button class="step-btn" data-action="colPlus" aria-label="열 늘리기">+</button>
+            </div>
           </div>
           <div class="col">
-            <label class="fld" style="margin:0;">행 개수</label>
-            <input type="number" id="rowCount" min="1" max="12" value="5" style="width:90px;">
+            <label class="fld" style="margin:0;">행 개수 (1·2·3…)</label>
+            <div class="stepper">
+              <button class="step-btn" data-action="rowMinus" aria-label="행 줄이기">−</button>
+              <input type="number" id="rowCount" min="1" max="12" value="5">
+              <button class="step-btn" data-action="rowPlus" aria-label="행 늘리기">+</button>
+            </div>
           </div>
         </div>
         <p class="hint">아래 격자에서 모드를 고른 뒤 칸을 눌러 편집하세요. <b>① 모드</b>에서 칸을 누르면 좌석↔빈칸이 전환돼요. <b>누른 채로 드래그</b>하면 여러 칸을 한 번에 칠할 수 있어, 통로·여백을 빠르게 만들 수 있어요. 짝꿍(③ 모드)도 칸을 <b>드래그</b>해 여러 자리를 한 번에 선택한 뒤 <b>묶기</b> 버튼을 누르면 됩니다.</p>
@@ -149,14 +156,14 @@
       <h2><span class="dot" style="background:var(--accent-2);"></span>히스토리</h2>
       <div id="history"><div class="empty-state">아직 저장된 배치가 없습니다.</div></div>
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;">
-        <button class="btn btn-soft btn-sm" data-action="exportCSV">⬇️ CSV 내보내기</button>
-        <input type="file" id="csvFile" accept=".csv" style="display:none">
-        <button class="btn btn-soft btn-sm" data-action="pickCsv">⬆️ CSV 불러오기</button>
+        <button class="btn btn-soft btn-sm" data-action="exportCSV">⬇️ 엑셀 내보내기</button>
+        <input type="file" id="csvFile" accept=".xlsx,.xls" style="display:none">
+        <button class="btn btn-soft btn-sm" data-action="pickCsv">⬆️ 엑셀 불러오기</button>
       </div>
     </div>
   </section>
 </div>
 
-<script type="module" src="scripts/app.js"></script>
+<script type="module" src="/src/app.ts"></script>
 </body>
 </html>
