@@ -168,6 +168,10 @@
           <div><b>배치 시도 횟수</b><div class="rule-desc">조건을 만족하는 배치를 찾는 최대 시도 (고급)</div></div>
           <input type="number" id="ruleMaxTries" min="1000" step="100000" value="2000000" style="width:120px;">
         </div>
+        <div class="rule-item">
+          <div><b>추첨 연출 애니메이션</b><div class="rule-desc">배치 시 슬롯머신처럼 이름이 돌다가 확정 (동작 줄이기 설정 시 자동 생략)</div></div>
+          <label class="switch"><input type="checkbox" id="ruleSlotAnim" checked><span class="slider"></span></label>
+        </div>
       </div>
       <div style="margin-top:16px;">
         <button class="btn btn-soft btn-sm" data-action="loadDefaults">규칙·설정 기본값 불러오기</button>

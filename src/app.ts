@@ -509,6 +509,49 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
       `<span>✂ 분리 ${separationGroups.length}그룹</span>`;
   }
 
+  // ===== 추첨 슬롯머신 연출 =====
+  let slotHandles = [];
+  function clearSlot(){
+    for(const h of slotHandles){ if(h.k==='i') clearInterval(h.id); else clearTimeout(h.id); }
+    slotHandles = [];
+  }
+  function prefersReducedMotion(){
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function playSlotReveal(assignment){
+    clearSlot();
+    if(!slotAnim || prefersReducedMotion()){ renderSeatGrid(assignment, true); return; }
+    renderSeatGrid(assignment, false);
+    const pool = students.slice();
+    if(pool.length===0){ renderSeatGrid(assignment, true); return; }
+    const cells = {};
+    document.querySelectorAll('#seatGrid .seat:not(.empty)').forEach(cell=>{
+      const lbl=cell.querySelector('.lbl'); if(lbl) cells[lbl.textContent]=cell;
+    });
+    const SPIN_MS=60, STEP=70, SPIN_DUR=520;
+    let order=0;
+    for(const seat of seatOrder){
+      const cell=cells[seat]; if(!cell) continue;
+      const finalName=assignment[seat];
+      const old=cell.querySelector('.name-pill'); if(old) old.remove();
+      const pill=document.createElement('span'); pill.className='name-pill slot-spin'; pill.textContent='…';
+      cell.appendChild(pill);
+      const startId=setTimeout(()=>{
+        const iv=setInterval(()=>{ pill.textContent = pool[Math.floor(Math.random()*pool.length)] || ''; }, SPIN_MS);
+        slotHandles.push({k:'i',id:iv});
+        const stopId=setTimeout(()=>{
+          clearInterval(iv);
+          const g=genderOf(finalName);
+          pill.className='name-pill '+(g||'')+' slot-final';
+          pill.innerHTML=(g?`<span class="gm">${g==='male'?'●':'▲'}</span>`:'')+finalName.replace(/</g,'&lt;');
+        }, SPIN_DUR);
+        slotHandles.push({k:'t',id:stopId});
+      }, order*STEP);
+      slotHandles.push({k:'t',id:startId});
+      order++;
+    }
+  }
+
   // ===== 알고리즘 =====
   function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
 
@@ -594,7 +637,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     }
 
     readRules();
-    // clearSlot();   // Task 14에서 활성화
+    clearSlot();
     swapMode=false; swapFirst=null;
     document.getElementById('swapBtn').classList.remove('active');
     document.getElementById('seatGrid').classList.remove('swap-mode');
@@ -627,7 +670,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
         found = true; break;
       }
       hideLoading();
-      if(found){ currentAssignment = assignment; renderSeatGrid(assignment, true); toast('배치 완료! 마음에 들면 저장하세요.'); }
+      if(found){ currentAssignment = assignment; playSlotReveal(assignment); toast('배치 완료! 마음에 들면 저장하세요.'); }
       else { uiAlert('조건(고정석·분리·짝꿍·히스토리)을 만족하는 배치를 찾지 못했습니다. 조건을 완화해보세요.'); }
     }, 60);
   }
@@ -777,7 +820,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     const on=(id,ev,fn)=>{ const el=document.getElementById(id); if(el) el.addEventListener(ev,fn); };
     on('colCount','input',rebuildEditor); on('rowCount','input',rebuildEditor);
     on('maleInput','input',renderSeparation); on('femaleInput','input',renderSeparation);
-    ['ruleWindow','ruleHistoryDup','ruleMaleExempt','ruleMaxTries'].forEach(id=>on(id,'change',persist));
+    ['ruleWindow','ruleHistoryDup','ruleMaleExempt','ruleMaxTries','ruleSlotAnim'].forEach(id=>on(id,'change',persist));
     on('csvFile','change',importCSV); on('rosterFile','change',importRoster);
     document.getElementById('seatGrid').addEventListener('click', onSeatGridClick);
   }

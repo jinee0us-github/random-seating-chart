@@ -351,3 +351,7 @@
 #swapBtn.active{background:var(--accent); color:#fff;}
 .seat-grid.swap-mode .seat:not(.empty){cursor:pointer;}
 .seat.swap-sel{box-shadow:0 0 0 3px var(--accent);}
+
+/* ===== 추첨 슬롯머신 ===== */
+.name-pill.slot-spin{background:var(--accent-soft); color:var(--accent); opacity:.9;}
+.name-pill.slot-final{animation:popIn .3s cubic-bezier(.2,.8,.3,1.2) both;}
