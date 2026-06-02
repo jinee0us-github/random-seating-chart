@@ -346,3 +346,8 @@
 :root[data-theme="dark"] .chip.sep button{color:#f0975a;}
 :root[data-theme="dark"] .chip.sep-name{background:var(--card); color:var(--text);}
 :root[data-theme="dark"] .chip.sep-name.on{background:var(--accent); color:#fff;}
+
+/* ===== 수동 자리 교환 ===== */
+#swapBtn.active{background:var(--accent); color:#fff;}
+.seat-grid.swap-mode .seat:not(.empty){cursor:pointer;}
+.seat.swap-sel{box-shadow:0 0 0 3px var(--accent);}

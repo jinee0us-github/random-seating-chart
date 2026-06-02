@@ -28,6 +28,8 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
   let pinnedSeats = {};        // 고정석: { [seat]: studentName }
   let separationGroups = [];   // 분리: string[][]
   let slotAnim = true;         // 추첨 애니메이션 on/off
+  let swapMode = false;
+  let swapFirst = null;
 
   // 에디터 상태
   let editMode = 'seat';
@@ -592,7 +594,10 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     }
 
     readRules();
-    // clearSlot(); swapMode=false; swapFirst=null;   // Task 13·14에서 활성화
+    // clearSlot();   // Task 14에서 활성화
+    swapMode=false; swapFirst=null;
+    document.getElementById('swapBtn').classList.remove('active');
+    document.getElementById('seatGrid').classList.remove('swap-mode');
     showLoading();
     setTimeout(()=>{
       const pinnedSeatSet = new Set(Object.keys(pinnedSeats));
@@ -627,6 +632,30 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     }, 60);
   }
 
+  function toggleSwap(){
+    if(!currentAssignment){ toast('먼저 랜덤 배치를 실행하세요.'); return; }
+    swapMode = !swapMode; swapFirst = null;
+    document.getElementById('swapBtn').classList.toggle('active', swapMode);
+    renderSeatGrid(currentAssignment);
+    // renderSeatGrid는 grid 엘리먼트 자체 클래스를 지우지 않지만, 명시적으로 1회만 설정
+    document.getElementById('seatGrid').classList.toggle('swap-mode', swapMode);
+    toast(swapMode ? '바꿀 자리 두 곳을 차례로 누르세요.' : '자리 바꾸기를 종료했습니다.');
+  }
+  function onSeatGridClick(e){
+    if(!swapMode || !currentAssignment) return;
+    const cell=e.target.closest('.seat'); if(!cell || cell.classList.contains('empty')) return;
+    const lbl=cell.querySelector('.lbl'); if(!lbl) return;
+    const seat=lbl.textContent;
+    if(!currentAssignment[seat]) return;
+    if(swapFirst===null){ swapFirst=seat; cell.classList.add('swap-sel'); return; }
+    if(swapFirst===seat){ swapFirst=null; renderSeatGrid(currentAssignment); return; }
+    const tmp=currentAssignment[swapFirst];
+    currentAssignment[swapFirst]=currentAssignment[seat];
+    currentAssignment[seat]=tmp;
+    swapFirst=null;
+    renderSeatGrid(currentAssignment);
+  }
+
   // ===== 저장 / 히스토리 =====
   function saveArrangement(){
     if(!currentAssignment){ toast('랜덤 배치를 먼저 실행하세요.'); return; }
@@ -640,6 +669,9 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
       seatHistory[st].push(seat);
     }
     showHistory(); currentAssignment = null;
+    swapMode=false; swapFirst=null;
+    document.getElementById('swapBtn').classList.remove('active');
+    document.getElementById('seatGrid').classList.remove('swap-mode');
     persist();
     toast(`회차 ${label} 저장됨`);
   }
@@ -733,7 +765,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     const A={assignSeats,saveArrangement,exportImage,applySettings,loadDefaults,
       colPlus:()=>stepCol(1), colMinus:()=>stepCol(-1), rowPlus:()=>stepRow(1), rowMinus:()=>stepRow(-1),
       createGroupFromSelection,fillAllSeats,clearAllSeats,downloadRosterTemplate,exportCSV,clearHistory,toggleTheme,
-      createSeparationGroup,
+      createSeparationGroup,toggleSwap,
       print:()=>window.print(),
       pickRoster:()=>document.getElementById('rosterFile').click(),
       pickCsv:()=>document.getElementById('csvFile').click()};
@@ -747,6 +779,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     on('maleInput','input',renderSeparation); on('femaleInput','input',renderSeparation);
     ['ruleWindow','ruleHistoryDup','ruleMaleExempt','ruleMaxTries'].forEach(id=>on(id,'change',persist));
     on('csvFile','change',importCSV); on('rosterFile','change',importRoster);
+    document.getElementById('seatGrid').addEventListener('click', onSeatGridClick);
   }
 
   // ===== 초기화 (모든 const/함수 정의 이후 실행) =====
