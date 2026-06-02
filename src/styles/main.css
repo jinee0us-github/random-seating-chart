@@ -324,3 +324,15 @@
 :root[data-theme="dark"] .step-btn[data-action$="Plus"]:hover, :root[data-theme="dark"] .edge-add[data-action$="Plus"]:hover{ background:rgba(0,114,178,.34); }
 :root[data-theme="dark"] .step-btn[data-action$="Minus"], :root[data-theme="dark"] .edge-add[data-action$="Minus"]{ background:rgba(213,94,0,.22); color:#f0975a; border-color:rgba(213,94,0,.55); }
 :root[data-theme="dark"] .step-btn[data-action$="Minus"]:hover, :root[data-theme="dark"] .edge-add[data-action$="Minus"]:hover{ background:rgba(213,94,0,.34); }
+
+/* ===== 고정석 ===== */
+.ecell.pinned{border-color:#7cc0f5; background:#eaf4ff;}
+.ecell .pin-tag{position:absolute; top:2px; right:3px; font-size:8px; font-weight:800; color:#0063a6; max-width:92%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.seat.pinned{border:1.5px dashed #7cc0f5;}
+.chip.pin{background:#d9ecff; border-color:#7cc0f5; color:#0063a6;}
+.chip.pin button{color:#0063a6;}
+:root[data-theme="dark"] .ecell.pinned{background:rgba(0,114,178,.18); border-color:rgba(0,114,178,.55);}
+:root[data-theme="dark"] .ecell .pin-tag{color:#74b9f0;}
+:root[data-theme="dark"] .seat.pinned{border-color:rgba(0,114,178,.6);}
+:root[data-theme="dark"] .chip.pin{background:rgba(0,114,178,.22); border-color:rgba(0,114,178,.55); color:#74b9f0;}
+:root[data-theme="dark"] .chip.pin button{color:#74b9f0;}

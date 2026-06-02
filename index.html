@@ -95,6 +95,7 @@
           <button class="mode-btn active" data-mode="seat">① 좌석 ↔ 빈칸</button>
           <button class="mode-btn" data-mode="male">② 남학생 전용 지정</button>
           <button class="mode-btn" data-mode="partner">③ 짝꿍 선택</button>
+          <button class="mode-btn" data-mode="pin">④ 고정석</button>
           <button class="btn btn-ghost btn-sm" id="groupBtn" data-action="createGroupFromSelection" style="display:none;">선택한 좌석 묶기</button>
           <button class="btn btn-soft btn-sm" data-action="fillAllSeats">전체 좌석 켜기</button>
           <button class="btn btn-soft btn-sm" data-action="clearAllSeats">전체 비우기</button>
@@ -121,6 +122,11 @@
         <div style="margin-top:16px;">
           <label class="fld">짝꿍 그룹</label>
           <div class="chips" id="partnerChips"></div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <label class="fld">고정석 (특정 학생을 특정 자리에 고정)</label>
+          <div class="chips" id="pinChips"></div>
         </div>
       </div>
 

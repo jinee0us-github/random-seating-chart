@@ -120,6 +120,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     editorMale = new Set([...editorMale].filter(s=>valid.has(s)));
     editorPartners = editorPartners.map(g=>g.filter(s=>valid.has(s))).filter(g=>g.length>=2);
     partnerSelection = new Set([...partnerSelection].filter(s=>valid.has(s)));
+    editorPins = Object.fromEntries(Object.entries(editorPins).filter(([s])=>valid.has(s)));
     renderEditor();
   }
 
@@ -144,15 +145,18 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
         else if(editorMale.has(label)){ cell.classList.add('male'); }
         if(partnerSelection.has(label)) cell.classList.add('sel');
         if(pgMap[label]){ const tag=document.createElement('span'); tag.className='pg'; tag.textContent='♥'+pgMap[label]; cell.appendChild(tag); }
+        if(editorPins[label]){ cell.classList.add('pinned'); const pt=document.createElement('span'); pt.className='pin-tag'; pt.textContent='📌'+editorPins[label]; cell.appendChild(pt); }
         const hint=document.createElement('span'); hint.className='hint-tag';
         hint.textContent = isActive ? '비우기' : (editMode==='seat' ? '+ 좌석' : '빈칸');
         cell.appendChild(hint);
         cell.dataset.label = label;
         if(editMode==='male') cell.onclick = ()=>onEditorClick(label);
+        if(editMode==='pin') cell.onclick = ()=>onPinClick(label);
         grid.appendChild(cell);
       }
     }
     renderPartnerChips();
+    renderPinChips();
   }
 
   // ===== 드래그 칠하기 (좌석↔빈칸) =====
@@ -189,6 +193,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
       editorMale = new Set([...editorMale].filter(s=>editorActive.has(s)));
       editorPartners = editorPartners.map(g=>g.filter(s=>editorActive.has(s))).filter(g=>g.length>=2);
       partnerSelection = new Set([...partnerSelection].filter(s=>editorActive.has(s)));
+      editorPins = Object.fromEntries(Object.entries(editorPins).filter(([s])=>editorActive.has(s)));
     }
     renderEditor();
   }
@@ -210,6 +215,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
         editorActive.delete(label); editorMale.delete(label);
         editorPartners = editorPartners.map(g=>g.filter(s=>s!==label)).filter(g=>g.length>=2);
         partnerSelection.delete(label);
+        delete editorPins[label];
       } else { editorActive.add(label); }
     } else if(editMode==='male'){
       if(!editorActive.has(label)){ toast('먼저 좌석으로 켜주세요.'); return; }
@@ -254,6 +260,35 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     });
   }
 
+  async function onPinClick(label){
+    if(!editorActive.has(label)){ toast('먼저 좌석으로 켜주세요.'); return; }
+    const roster = parseNames(document.getElementById('maleInput').value)
+      .concat(parseNames(document.getElementById('femaleInput').value));
+    if(roster.length===0){ toast('먼저 명단을 입력하세요.'); return; }
+    const items = [{value:'', label:'— 고정 해제 —'}].concat(roster.map(n=>({value:n,label:n})));
+    const cur = editorPins[label] || '';
+    const pick = await uiSelect(`${label} 자리에 고정할 학생`, items, cur);
+    if(pick===null) return; // 취소
+    for(const s of Object.keys(editorPins)){ if(editorPins[s]===pick) delete editorPins[s]; }
+    if(pick==='') delete editorPins[label]; else editorPins[label]=pick;
+    renderEditor();
+  }
+
+  function renderPinChips(){
+    const box=document.getElementById('pinChips'); if(!box) return;
+    box.innerHTML='';
+    const seats=Object.keys(editorPins).sort();
+    if(seats.length===0){ box.innerHTML='<span class="hint">아직 고정석이 없습니다. ④ 고정석 모드에서 좌석을 누르세요.</span>'; return; }
+    for(const seat of seats){
+      const chip=document.createElement('div'); chip.className='chip pin';
+      const t=document.createElement('span'); t.textContent=`📌 ${seat} · ${editorPins[seat]}`;
+      chip.appendChild(t);
+      const x=document.createElement('button'); x.textContent='×';
+      x.onclick=()=>{ delete editorPins[seat]; renderEditor(); };
+      chip.appendChild(x); box.appendChild(chip);
+    }
+  }
+
   // ===== 설정 적용 =====
   function isStructureChanged(){
     const eq=(a,b)=>a.length===b.length && a.every((v,i)=>v===b[i]);
@@ -282,6 +317,18 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     maleStudents = newMale;
     femaleStudents = newFemale;
     students = maleStudents.concat(femaleStudents);
+
+    // 고정석: 비활성 좌석/명단 외 학생 정리 후 commit
+    const rosterSet = new Set(students);
+    const cleanPins = {};
+    for(const seat of Object.keys(editorPins)){
+      if(editorActive.has(seat) && rosterSet.has(editorPins[seat])) cleanPins[seat]=editorPins[seat];
+    }
+    editorPins = cleanPins;
+    pinnedSeats = {...editorPins};
+    // 분리: 명단 외 이름/2명 미만 정리 후 commit
+    editorSeparation = editorSeparation.map(g=>g.filter(n=>rosterSet.has(n))).filter(g=>g.length>=2);
+    separationGroups = editorSeparation.map(g=>g.slice());
 
     students.forEach(st=>{ if(!seatHistory[st]) seatHistory[st]=[]; });   // 히스토리 유지(초기화 안 함)
     currentAssignment = null;
@@ -396,6 +443,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
         if(!activeSeats.has(label)){ cell.className='seat empty'; grid.appendChild(cell); continue; }
         cell.className = 'seat';
         if(maleOnlySeats.has(label)) cell.classList.add('male-only');
+        if(pinnedSeats[label]) cell.classList.add('pinned');
         const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent=label; cell.appendChild(lbl);
         const nm = assignment && assignment[label];
         if(nm){
@@ -418,7 +466,9 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
       `<span><i class="sw" style="background:#ccfbf1;border-color:#5eead4;"></i> ● 남학생 ${maleStudents.length}명</span>`+
       `<span><i class="sw" style="background:#fef3c7;border-color:#fcd34d;"></i> ▲ 여학생 ${femaleStudents.length}명</span>`+
       `<span><i class="sw" style="background:var(--accent-soft);border:1.5px solid #c7cbff;"></i> 남학생 전용 ${maleOnlySeats.size}석</span>`+
-      `<span>♥ 짝꿍 ${partnerGroups.length}그룹</span>`;
+      `<span>♥ 짝꿍 ${partnerGroups.length}그룹</span>`+
+      `<span>📌 고정석 ${Object.keys(pinnedSeats).length}석</span>`+
+      `<span>✂ 분리 ${separationGroups.length}그룹</span>`;
   }
 
   // ===== 알고리즘 =====
