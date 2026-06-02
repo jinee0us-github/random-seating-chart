@@ -101,8 +101,14 @@
 
         <div class="editor-wrap">
           <div class="editor-grid" id="editorGrid"></div>
-          <button class="edge-add edge-col" data-action="colPlus" title="열 추가" aria-label="열 추가">＋</button>
-          <button class="edge-add edge-row" data-action="rowPlus" title="행 추가" aria-label="행 추가">＋</button>
+          <div class="edge-grp edge-col">
+            <button class="edge-add" data-action="colPlus" title="열 추가" aria-label="열 추가">＋</button>
+            <button class="edge-add" data-action="colMinus" title="열 제거" aria-label="열 제거">－</button>
+          </div>
+          <div class="edge-grp edge-row">
+            <button class="edge-add" data-action="rowPlus" title="행 추가" aria-label="행 추가">＋</button>
+            <button class="edge-add" data-action="rowMinus" title="행 제거" aria-label="행 제거">－</button>
+          </div>
         </div>
 
         <div class="legend">
