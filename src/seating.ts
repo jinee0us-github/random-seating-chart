@@ -116,3 +116,39 @@ export function violatesSeparation(assignment: Assignment, separationGroups: str
   }
   return false;
 }
+
+export type Constraint = (assignment: Assignment) => boolean;
+
+export function buildConstraints(args: {
+  seatHistory: Record<string, SeatLabel[]>;
+  periods: string[];
+  maleOnlySeats: Set<SeatLabel>;
+  pinnedSeats: Set<SeatLabel>;
+  pinnedStudents: Set<string>;
+  partnerGroups: SeatLabel[][];
+  separationGroups: string[][];
+  ruleWindow: number;
+  ruleHistoryDup: boolean;
+  ruleMaleExempt: boolean;
+}): Constraint[] {
+  const cs: Constraint[] = [];
+  if (args.ruleHistoryDup) {
+    cs.push((assignment) =>
+      isHistoryOK({
+        assignment,
+        seatHistory: args.seatHistory,
+        maleOnlySeats: args.maleOnlySeats,
+        pinnedSeats: args.pinnedSeats,
+        ruleMaleExempt: args.ruleMaleExempt,
+      })
+    );
+  }
+  if (args.partnerGroups.length > 0) {
+    const pastPairs = computePastPairs(args.partnerGroups, args.periods, args.seatHistory, args.ruleWindow);
+    cs.push((assignment) => partnerPairsOK(assignment, args.partnerGroups, pastPairs, args.pinnedStudents));
+  }
+  if (args.separationGroups.length > 0) {
+    cs.push((assignment) => !violatesSeparation(assignment, args.separationGroups));
+  }
+  return cs;
+}

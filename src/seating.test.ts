@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { parseSeat, areAdjacent, buildSeatOrder, isHistoryOK, pairKey, computePastPairs, partnerPairsOK, isValidPartnerAssignment, violatesSeparation } from './seating';
+import {
+  parseSeat, areAdjacent, buildSeatOrder, isHistoryOK,
+  pairKey, computePastPairs, partnerPairsOK, isValidPartnerAssignment,
+  violatesSeparation, buildConstraints,
+} from './seating';
 
 describe('parseSeat', () => {
   it('열 문자를 0-기반 인덱스로, 행을 숫자로 변환', () => {
@@ -132,5 +136,49 @@ describe('violatesSeparation', () => {
   });
   it('그룹 멤버가 배치에 없으면 무시', () => {
     expect(violatesSeparation({ A1: '가' }, [['가', '나']])).toBe(false);
+  });
+});
+
+describe('buildConstraints', () => {
+  const baseArgs = {
+    seatHistory: {} as Record<string, string[]>,
+    periods: [] as string[],
+    maleOnlySeats: new Set<string>(),
+    pinnedSeats: new Set<string>(),
+    pinnedStudents: new Set<string>(),
+    partnerGroups: [] as string[][],
+    separationGroups: [] as string[][],
+    ruleWindow: 6,
+    ruleHistoryDup: true,
+    ruleMaleExempt: true,
+  };
+
+  it('ruleHistoryDup=false면 히스토리 술어 제외', () => {
+    const withHist = buildConstraints({ ...baseArgs, seatHistory: { 가: ['A1'] }, ruleHistoryDup: true });
+    const noHist = buildConstraints({ ...baseArgs, seatHistory: { 가: ['A1'] }, ruleHistoryDup: false });
+    expect(withHist.length).toBe(1);
+    expect(noHist.length).toBe(0);
+  });
+
+  it('짝꿍/분리 그룹이 있을 때만 해당 술어 포함', () => {
+    const cs = buildConstraints({
+      ...baseArgs,
+      ruleHistoryDup: false,
+      partnerGroups: [['A1', 'A2']],
+      separationGroups: [['가', '나']],
+    });
+    expect(cs.length).toBe(2);
+  });
+
+  it('합성된 술어가 분리 위반 배치를 false 처리', () => {
+    const cs = buildConstraints({
+      ...baseArgs,
+      ruleHistoryDup: false,
+      separationGroups: [['가', '나']],
+    });
+    const adjacent = { A1: '가', B1: '나' };
+    const apart = { A1: '가', C1: '나' };
+    expect(cs.every((c) => c(adjacent))).toBe(false);
+    expect(cs.every((c) => c(apart))).toBe(true);
   });
 });
