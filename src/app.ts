@@ -510,32 +510,6 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
   // ===== 알고리즘 =====
   function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
 
-  function isHistoryOK(assignment){
-    for(const [seat, student] of Object.entries(assignment)){
-      if(ruleMaleExempt && maleOnlySeats.has(seat)) continue;
-      if((seatHistory[student]||[]).includes(seat)) return false;
-    }
-    return true;
-  }
-
-  function isValidPartnerAssignment(assignment){
-    const recent = Math.max(0, periods.length - ruleWindow);
-    const pastPairs = new Set();
-    for(let i=recent;i<periods.length;i++){
-      for(const group of partnerGroups){
-        const names = group.map(seat=>Object.keys(seatHistory).find(st=>seatHistory[st][i]===seat)).filter(Boolean);
-        for(let a=0;a<names.length;a++) for(let b=a+1;b<names.length;b++) pastPairs.add([names[a],names[b]].sort().join('|'));
-      }
-    }
-    for(const group of partnerGroups){
-      const names = group.map(seat=>assignment[seat]).filter(Boolean);
-      for(let a=0;a<names.length;a++) for(let b=a+1;b<names.length;b++){
-        if(pastPairs.has([names[a],names[b]].sort().join('|'))) return false;
-      }
-    }
-    return true;
-  }
-
   // ===== 이미지로 저장 (canvas, 라이브러리 불필요) =====
   function roundRect(x,px,py,w,h,r){ x.beginPath(); x.moveTo(px+r,py); x.arcTo(px+w,py,px+w,py+h,r); x.arcTo(px+w,py+h,px,py+h,r); x.arcTo(px,py+h,px,py,r); x.arcTo(px,py,px+w,py,r); x.closePath(); }
   function exportImage(){
@@ -594,30 +568,62 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
   function assignSeats(){
     if(seatOrder.length===0){ toast('먼저 설정을 적용해 좌석을 만들어주세요.'); return; }
     if(students.length !== seatOrder.length){ uiAlert(`인원 수(${students.length})와 좌석 수(${seatOrder.length})가 일치해야 합니다.`); return; }
-    if(maleStudents.length < maleOnlySeats.size){ uiAlert(`남학생 전용 좌석(${maleOnlySeats.size})을 채우기에 남학생 수가 부족합니다.`); return; }
+
+    // 남전용석을 채울 남학생 수 점검(고정석 제외)
+    const pinnedMales = Object.values(pinnedSeats).filter(n=>maleStudents.includes(n)).length;
+    const openMaleSeatCount = [...maleOnlySeats].filter(s=>!(s in pinnedSeats)).length;
+    if(maleStudents.length - pinnedMales < openMaleSeatCount){
+      uiAlert(`남학생 전용 좌석(${openMaleSeatCount})을 채우기에 (고정석 제외) 남학생 수가 부족합니다.`); return;
+    }
+
+    // 고정석 사전 점검
+    for(const seat of Object.keys(pinnedSeats)){
+      const st = pinnedSeats[seat];
+      if(!students.includes(st)){ uiAlert(`고정석 ${seat}의 학생(${st})이 명단에 없습니다. 설정을 다시 적용해주세요.`); return; }
+      if(maleOnlySeats.has(seat) && femaleStudents.includes(st)){ uiAlert(`고정석 ${seat}는 남학생 전용석인데 여학생(${st})이 지정됐습니다.`); return; }
+    }
+    // 핀-핀 분리 불가 점검
+    const pinSeatOf = {}; for(const s of Object.keys(pinnedSeats)) pinSeatOf[pinnedSeats[s]]=s;
+    for(const group of separationGroups){
+      const gseats = group.map(n=>pinSeatOf[n]).filter(Boolean);
+      for(let a=0;a<gseats.length;a++) for(let b=a+1;b<gseats.length;b++){
+        if(areAdjacent(gseats[a],gseats[b])){ uiAlert(`분리 그룹의 두 학생이 고정석(${gseats[a]}, ${gseats[b]})에서 이미 인접합니다.`); return; }
+      }
+    }
 
     readRules();
+    // clearSlot(); swapMode=false; swapFirst=null;   // Task 13·14에서 활성화
     showLoading();
     setTimeout(()=>{
+      const pinnedSeatSet = new Set(Object.keys(pinnedSeats));
+      const pinnedStudents = new Set(Object.values(pinnedSeats));
+      const constraints = buildConstraints({
+        seatHistory, periods, maleOnlySeats, pinnedSeats: pinnedSeatSet, pinnedStudents,
+        partnerGroups, separationGroups, ruleWindow, ruleHistoryDup, ruleMaleExempt
+      });
       const maxTries = ruleMaxTries;
       let found = false, assignment = null;
       for(let t=0;t<maxTries;t++){
         assignment = {};
-        const males = shuffle(maleStudents.slice());
-        const chosen = males.slice(0, maleOnlySeats.size);
-        let idx=0; for(const seat of maleOnlySeats) assignment[seat]=chosen[idx++];
-        const rest = seatOrder.filter(s=>!maleOnlySeats.has(s));
+        // 1) 핀 고정
+        for(const seat of Object.keys(pinnedSeats)) assignment[seat]=pinnedSeats[seat];
+        // 2) 남전용석(핀 제외) 채움
+        const openMaleSeats = [...maleOnlySeats].filter(s=>!pinnedSeatSet.has(s));
+        const used = new Set(Object.values(assignment));
+        const males = shuffle(maleStudents.filter(s=>!used.has(s)));
+        let mi=0; for(const seat of openMaleSeats) assignment[seat]=males[mi++];
+        // 3) 나머지
         const assigned = new Set(Object.values(assignment));
-        const restStudents = students.filter(s=>!assigned.has(s));
-        shuffle(restStudents);
+        const rest = seatOrder.filter(s=>!(s in assignment));
+        const restStudents = shuffle(students.filter(s=>!assigned.has(s)));
         for(let i=0;i<rest.length;i++) assignment[rest[i]]=restStudents[i];
-        if(ruleHistoryDup && !isHistoryOK(assignment)) continue;
-        if(!isValidPartnerAssignment(assignment)) continue;
+        // 4) 검증
+        if(!constraints.every(c=>c(assignment))) continue;
         found = true; break;
       }
       hideLoading();
       if(found){ currentAssignment = assignment; renderSeatGrid(assignment, true); toast('배치 완료! 마음에 들면 저장하세요.'); }
-      else { uiAlert('조건(짝꿍 및 히스토리)을 만족하는 배치를 찾지 못했습니다. 짝꿍/히스토리 조건을 완화해보세요.'); }
+      else { uiAlert('조건(고정석·분리·짝꿍·히스토리)을 만족하는 배치를 찾지 못했습니다. 조건을 완화해보세요.'); }
     }, 60);
   }
 
