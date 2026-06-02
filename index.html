@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>랜덤 자리 배치</title>
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+<div id="loadingOverlay"><div class="loading-content"><div class="spinner"></div><div class="loading-text">자리를 배치하는 중입니다…</div></div></div>
+<div id="toast" class="toast"></div>
+<div id="modal" class="modal-overlay"><div class="modal-box"><div class="modal-msg" id="modalMsg"></div><div class="modal-actions"><button class="btn btn-soft" id="modalCancel">취소</button><button class="btn btn-primary" id="modalOk">확인</button></div></div></div>
+
+<div class="wrap">
+  <button id="themeToggle" class="theme-toggle" data-action="toggleTheme" aria-label="테마 전환">🌙</button>
+  <header class="hero">
+    <h1>랜덤 자리 배치</h1>
+    <p>명단·좌석·짝꿍을 자유롭게 설정하고 공정하게 자리를 섞어보세요.</p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="place">🎲 배치</button>
+    <button class="tab-btn" data-tab="admin">⚙️ 관리자 설정</button>
+    <button class="tab-btn" data-tab="rules">📐 규칙 설정</button>
+    <button class="tab-btn" data-tab="history">📜 히스토리</button>
+  </nav>
+
+  <!-- ===== 배치 뷰 ===== -->
+  <section class="view active" id="view-place">
+    <div class="card">
+      <h2><span class="dot"></span>자리 배치</h2>
+      <div class="toolbar" style="margin-bottom:18px;">
+        <div class="col">
+          <label class="fld" style="margin:0;">회차(월) 선택</label>
+          <input type="month" id="periodInput" style="width:170px;">
+        </div>
+        <button class="btn btn-primary" data-action="assignSeats">🎲 랜덤 배치</button>
+        <button class="btn btn-ghost" data-action="saveArrangement">💾 저장하기</button>
+        <button class="btn btn-soft" data-action="exportImage">🖼️ 이미지 저장</button>
+        <button class="btn btn-soft" data-action="print">🖨️ 인쇄</button>
+      </div>
+      <div class="seat-grid" id="seatGrid"></div>
+      <div class="legend" id="seatInfo"></div>
+    </div>
+  </section>
+
+  <!-- ===== 관리자 설정 뷰 ===== -->
+  <section class="view" id="view-admin">
+    <div class="card">
+      <h2><span class="dot"></span>명단 & 좌석 배열</h2>
+
+      <!-- 명단 -->
+      <div style="margin-bottom:24px;">
+        <div class="grid2">
+          <div>
+            <label class="fld">남학생 (콤마로 구분)</label>
+            <textarea id="maleInput" rows="3"></textarea>
+          </div>
+          <div>
+            <label class="fld">여학생 (콤마로 구분)</label>
+            <textarea id="femaleInput" rows="3"></textarea>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
+          <input type="file" id="rosterFile" accept=".csv" style="display:none">
+          <button class="btn btn-soft btn-sm" data-action="pickRoster">📄 CSV로 명단 불러오기</button>
+          <button class="btn btn-soft btn-sm" data-action="downloadRosterTemplate">⬇️ 명단 양식 받기</button>
+        </div>
+        <p class="hint" style="margin-top:8px;">CSV 양식: 첫 행 머리글 <b>이름, 성별</b> · 성별은 <b>남/여</b>(또는 M/F). 불러온 뒤 <b>설정 적용</b>을 눌러주세요.</p>
+      </div>
+
+      <!-- 좌석 배열 -->
+      <div style="margin-bottom:18px;">
+        <label class="fld">좌석 배열 (열 = 알파벳 자동, 행 = 숫자)</label>
+        <div class="toolbar" style="justify-content:flex-start;">
+          <div class="col">
+            <label class="fld" style="margin:0;">열 개수</label>
+            <input type="number" id="colCount" min="1" max="10" value="4" style="width:90px;">
+          </div>
+          <div class="col">
+            <label class="fld" style="margin:0;">행 개수</label>
+            <input type="number" id="rowCount" min="1" max="12" value="5" style="width:90px;">
+          </div>
+        </div>
+        <p class="hint">아래 격자에서 모드를 고른 뒤 칸을 눌러 편집하세요. <b>① 모드</b>에서 칸을 누르면 좌석↔빈칸이 전환돼요. <b>누른 채로 드래그</b>하면 여러 칸을 한 번에 칠할 수 있어, 통로·여백을 빠르게 만들 수 있어요. 짝꿍(③ 모드)도 칸을 <b>드래그</b>해 여러 자리를 한 번에 선택한 뒤 <b>묶기</b> 버튼을 누르면 됩니다.</p>
+        <div class="mode-row">
+          <button class="mode-btn active" data-mode="seat">① 좌석 ↔ 빈칸</button>
+          <button class="mode-btn" data-mode="male">② 남학생 전용 지정</button>
+          <button class="mode-btn" data-mode="partner">③ 짝꿍 선택</button>
+          <button class="btn btn-ghost btn-sm" id="groupBtn" data-action="createGroupFromSelection" style="display:none;">선택한 좌석 묶기</button>
+          <button class="btn btn-soft btn-sm" data-action="fillAllSeats">전체 좌석 켜기</button>
+          <button class="btn btn-soft btn-sm" data-action="clearAllSeats">전체 비우기</button>
+        </div>
+
+        <div class="editor-grid" id="editorGrid"></div>
+
+        <div class="legend">
+          <span><i class="sw" style="background:#fff;"></i> 좌석</span>
+          <span><i class="sw" style="background:var(--accent-soft); border-color:#c7cbff;"></i> 남학생 전용</span>
+          <span><i class="sw" style="background:#f3f4f9; border-style:dashed;"></i> 빈칸(좌석 아님)</span>
+        </div>
+
+        <div style="margin-top:16px;">
+          <label class="fld">짝꿍 그룹</label>
+          <div class="chips" id="partnerChips"></div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;">
+        <button class="btn btn-primary" data-action="applySettings">설정 적용</button>
+        <button class="btn btn-soft" data-action="loadDefaults">기본값 불러오기</button>
+      </div>
+      <p class="hint">설정을 적용하면 좌석 구조가 바뀌므로 저장된 히스토리는 초기화됩니다.</p>
+    </div>
+  </section>
+
+  <!-- ===== 규칙 설정 뷰 ===== -->
+  <section class="view" id="view-rules">
+    <div class="card">
+      <h2><span class="dot" style="background:var(--accent-2);"></span>규칙 설정</h2>
+      <p class="hint" style="margin-top:0;">랜덤 배치 동작을 조정합니다. 변경 시 <b>다음 랜덤 배치부터 즉시 반영</b>되며, 저장된 히스토리는 초기화되지 않습니다.</p>
+      <div class="rules">
+        <div class="rule-item">
+          <div><b>짝꿍 중복 방지 회차</b><div class="rule-desc">최근 N회 안엔 같은 짝을 피함 (0 = 끄기)</div></div>
+          <input type="number" id="ruleWindow" min="0" max="50" value="6" style="width:84px;">
+        </div>
+        <div class="rule-item">
+          <div><b>같은 자리 재배정 금지</b><div class="rule-desc">이전에 앉았던 자리를 다시 배정하지 않음</div></div>
+          <label class="switch"><input type="checkbox" id="ruleHistoryDup" checked><span class="slider"></span></label>
+        </div>
+        <div class="rule-item">
+          <div><b>남학생 전용석 히스토리 예외</b><div class="rule-desc">전용석은 자리 중복을 허용</div></div>
+          <label class="switch"><input type="checkbox" id="ruleMaleExempt" checked><span class="slider"></span></label>
+        </div>
+        <div class="rule-item">
+          <div><b>배치 시도 횟수</b><div class="rule-desc">조건을 만족하는 배치를 찾는 최대 시도 (고급)</div></div>
+          <input type="number" id="ruleMaxTries" min="1000" step="100000" value="2000000" style="width:120px;">
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn btn-soft btn-sm" data-action="loadDefaults">규칙·설정 기본값 불러오기</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 히스토리 뷰 ===== -->
+  <section class="view" id="view-history">
+    <div class="card">
+      <h2><span class="dot" style="background:var(--accent-2);"></span>히스토리</h2>
+      <div id="history"><div class="empty-state">아직 저장된 배치가 없습니다.</div></div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;">
+        <button class="btn btn-soft btn-sm" data-action="exportCSV">⬇️ CSV 내보내기</button>
+        <input type="file" id="csvFile" accept=".csv" style="display:none">
+        <button class="btn btn-soft btn-sm" data-action="pickCsv">⬆️ CSV 불러오기</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script type="module" src="scripts/app.js"></script>
+</body>
+</html>
