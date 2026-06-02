@@ -424,6 +424,10 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
       seatOrder=buildSeatOrder(columns,maxRows,activeSeats);
       maleStudents=(d.maleStudents||[]).slice(); femaleStudents=(d.femaleStudents||[]).slice();
       students=maleStudents.concat(femaleStudents);
+      // 손상·구버전 저장값 방어: 비활성 좌석/명단 외 핀·분리 정리
+      const _roster=new Set(students);
+      pinnedSeats=Object.fromEntries(Object.entries(pinnedSeats).filter(([s,n])=>activeSeats.has(s)&&_roster.has(n)));
+      separationGroups=separationGroups.map(g=>g.filter(n=>_roster.has(n))).filter(g=>g.length>=2);
       seatHistory=d.seatHistory||{}; periods=d.periods||[]; periodLayouts=d.periodLayouts||[];
       editorColumns=columns.slice(); editorMaxRows=maxRows;
       editorActive=new Set(activeSeats); editorMale=new Set(maleOnlySeats);
@@ -702,6 +706,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
   // ===== 저장 / 히스토리 =====
   function saveArrangement(){
     if(!currentAssignment){ toast('랜덤 배치를 먼저 실행하세요.'); return; }
+    clearSlot();
     const base = document.getElementById('periodInput').value || '회차';
     const label = nextPeriodLabel(base);
     periods.push(label);
