@@ -26,3 +26,20 @@ export function buildSeatOrder(cols: string[], rows: number, active: Set<string>
   }
   return order;
 }
+
+export function isHistoryOK(args: {
+  assignment: Assignment;
+  seatHistory: Record<string, SeatLabel[]>;
+  maleOnlySeats: Set<SeatLabel>;
+  pinnedSeats: Set<SeatLabel>;
+  ruleMaleExempt: boolean;
+}): boolean {
+  const { assignment, seatHistory, maleOnlySeats, pinnedSeats, ruleMaleExempt } = args;
+  for (const seat of Object.keys(assignment)) {
+    if (pinnedSeats.has(seat)) continue;
+    if (ruleMaleExempt && maleOnlySeats.has(seat)) continue;
+    const student = assignment[seat];
+    if ((seatHistory[student] || []).includes(seat)) return false;
+  }
+  return true;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSeat, areAdjacent, buildSeatOrder } from './seating';
+import { parseSeat, areAdjacent, buildSeatOrder, isHistoryOK } from './seating';
 
 describe('parseSeat', () => {
   it('열 문자를 0-기반 인덱스로, 행을 숫자로 변환', () => {
@@ -37,5 +37,43 @@ describe('buildSeatOrder', () => {
   it('비활성 좌석은 제외', () => {
     const active = new Set(['A1', 'B2']);
     expect(buildSeatOrder(['A', 'B'], 2, active)).toEqual(['A1', 'B2']);
+  });
+});
+
+describe('isHistoryOK', () => {
+  const base = {
+    maleOnlySeats: new Set<string>(),
+    pinnedSeats: new Set<string>(),
+    ruleMaleExempt: true,
+  };
+  it('이전에 앉은 자리에 다시 배정되면 false', () => {
+    expect(isHistoryOK({
+      ...base,
+      assignment: { A1: '철수' },
+      seatHistory: { 철수: ['A1'] },
+    })).toBe(false);
+  });
+  it('이전 자리와 겹치지 않으면 true', () => {
+    expect(isHistoryOK({
+      ...base,
+      assignment: { A2: '철수' },
+      seatHistory: { 철수: ['A1'] },
+    })).toBe(true);
+  });
+  it('남전용석은 ruleMaleExempt면 중복 허용', () => {
+    expect(isHistoryOK({
+      ...base,
+      maleOnlySeats: new Set(['A1']),
+      assignment: { A1: '철수' },
+      seatHistory: { 철수: ['A1'] },
+    })).toBe(true);
+  });
+  it('고정석(pinnedSeats)은 항상 중복 허용', () => {
+    expect(isHistoryOK({
+      ...base,
+      pinnedSeats: new Set(['A1']),
+      assignment: { A1: '철수' },
+      seatHistory: { 철수: ['A1'] },
+    })).toBe(true);
   });
 });
