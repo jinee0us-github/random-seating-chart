@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSeat, areAdjacent, buildSeatOrder, isHistoryOK, pairKey, computePastPairs, partnerPairsOK, isValidPartnerAssignment } from './seating';
+import { parseSeat, areAdjacent, buildSeatOrder, isHistoryOK, pairKey, computePastPairs, partnerPairsOK, isValidPartnerAssignment, violatesSeparation } from './seating';
 
 describe('parseSeat', () => {
   it('열 문자를 0-기반 인덱스로, 행을 숫자로 변환', () => {
@@ -114,5 +114,23 @@ describe('짝꿍 검증', () => {
       pinnedStudents: new Set(),
     });
     expect(ok).toBe(true);
+  });
+});
+
+describe('violatesSeparation', () => {
+  it('분리 그룹 두 명이 좌우 인접이면 위반(true)', () => {
+    expect(violatesSeparation({ A1: '가', B1: '나' }, [['가', '나']])).toBe(true);
+  });
+  it('분리 그룹 두 명이 앞뒤 인접이면 위반(true)', () => {
+    expect(violatesSeparation({ A1: '가', A2: '나' }, [['가', '나']])).toBe(true);
+  });
+  it('떨어져 있으면 통과(false)', () => {
+    expect(violatesSeparation({ A1: '가', C1: '나' }, [['가', '나']])).toBe(false);
+  });
+  it('3인 그룹 중 한 쌍이라도 인접하면 위반', () => {
+    expect(violatesSeparation({ A1: '가', B1: '나', D1: '다' }, [['가', '나', '다']])).toBe(true);
+  });
+  it('그룹 멤버가 배치에 없으면 무시', () => {
+    expect(violatesSeparation({ A1: '가' }, [['가', '나']])).toBe(false);
   });
 });

@@ -102,3 +102,17 @@ export function isValidPartnerAssignment(args: {
   const pastPairs = computePastPairs(partnerGroups, periods, seatHistory, ruleWindow);
   return partnerPairsOK(assignment, partnerGroups, pastPairs, pinnedStudents);
 }
+
+export function violatesSeparation(assignment: Assignment, separationGroups: string[][]): boolean {
+  const seatOf: Record<string, SeatLabel> = {};
+  for (const seat of Object.keys(assignment)) seatOf[assignment[seat]] = seat;
+  for (const group of separationGroups) {
+    const seats = group.map((name) => seatOf[name]).filter(Boolean) as SeatLabel[];
+    for (let a = 0; a < seats.length; a++) {
+      for (let b = a + 1; b < seats.length; b++) {
+        if (areAdjacent(seats[a], seats[b])) return true;
+      }
+    }
+  }
+  return false;
+}
