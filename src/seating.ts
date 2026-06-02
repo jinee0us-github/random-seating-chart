@@ -43,3 +43,62 @@ export function isHistoryOK(args: {
   }
   return true;
 }
+
+export function pairKey(a: string, b: string): string {
+  return [a, b].sort().join('|');
+}
+
+export function computePastPairs(
+  partnerGroups: SeatLabel[][],
+  periods: string[],
+  seatHistory: Record<string, SeatLabel[]>,
+  ruleWindow: number
+): Set<string> {
+  const recent = Math.max(0, periods.length - ruleWindow);
+  const pastPairs = new Set<string>();
+  const students = Object.keys(seatHistory);
+  for (let i = recent; i < periods.length; i++) {
+    for (const group of partnerGroups) {
+      const names = group
+        .map((seat) => students.find((st) => seatHistory[st][i] === seat))
+        .filter(Boolean) as string[];
+      for (let a = 0; a < names.length; a++) {
+        for (let b = a + 1; b < names.length; b++) {
+          pastPairs.add(pairKey(names[a], names[b]));
+        }
+      }
+    }
+  }
+  return pastPairs;
+}
+
+export function partnerPairsOK(
+  assignment: Assignment,
+  partnerGroups: SeatLabel[][],
+  pastPairs: Set<string>,
+  pinnedStudents: Set<string>
+): boolean {
+  for (const group of partnerGroups) {
+    const names = group.map((seat) => assignment[seat]).filter(Boolean) as string[];
+    for (let a = 0; a < names.length; a++) {
+      for (let b = a + 1; b < names.length; b++) {
+        if (pinnedStudents.has(names[a]) || pinnedStudents.has(names[b])) continue;
+        if (pastPairs.has(pairKey(names[a], names[b]))) return false;
+      }
+    }
+  }
+  return true;
+}
+
+export function isValidPartnerAssignment(args: {
+  assignment: Assignment;
+  partnerGroups: SeatLabel[][];
+  periods: string[];
+  seatHistory: Record<string, SeatLabel[]>;
+  ruleWindow: number;
+  pinnedStudents: Set<string>;
+}): boolean {
+  const { assignment, partnerGroups, periods, seatHistory, ruleWindow, pinnedStudents } = args;
+  const pastPairs = computePastPairs(partnerGroups, periods, seatHistory, ruleWindow);
+  return partnerPairsOK(assignment, partnerGroups, pastPairs, pinnedStudents);
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSeat, areAdjacent, buildSeatOrder, isHistoryOK } from './seating';
+import { parseSeat, areAdjacent, buildSeatOrder, isHistoryOK, pairKey, computePastPairs, partnerPairsOK, isValidPartnerAssignment } from './seating';
 
 describe('parseSeat', () => {
   it('열 문자를 0-기반 인덱스로, 행을 숫자로 변환', () => {
@@ -75,5 +75,44 @@ describe('isHistoryOK', () => {
       assignment: { A1: '철수' },
       seatHistory: { 철수: ['A1'] },
     })).toBe(true);
+  });
+});
+
+describe('짝꿍 검증', () => {
+  it('pairKey는 정렬된 키를 반환', () => {
+    expect(pairKey('나', '가')).toBe('가|나');
+    expect(pairKey('가', '나')).toBe('가|나');
+  });
+
+  it('computePastPairs는 window 내 같은 그룹의 짝을 수집', () => {
+    // 0회차: A1=가, A2=나 (같은 짝꿍 그룹 [A1,A2])
+    const seatHistory = { 가: ['A1'], 나: ['A2'] };
+    const pp = computePastPairs([['A1', 'A2']], ['1회'], seatHistory, 6);
+    expect(pp.has('가|나')).toBe(true);
+  });
+
+  it('partnerPairsOK는 과거 짝이 다시 묶이면 false', () => {
+    const pastPairs = new Set(['가|나']);
+    const ok = partnerPairsOK({ A1: '가', A2: '나' }, [['A1', 'A2']], pastPairs, new Set());
+    expect(ok).toBe(false);
+  });
+
+  it('고정 학생이 낀 짝은 예외(true)', () => {
+    const pastPairs = new Set(['가|나']);
+    const ok = partnerPairsOK({ A1: '가', A2: '나' }, [['A1', 'A2']], pastPairs, new Set(['가']));
+    expect(ok).toBe(true);
+  });
+
+  it('isValidPartnerAssignment: window=0이면 항상 true', () => {
+    const seatHistory = { 가: ['A1'], 나: ['A2'] };
+    const ok = isValidPartnerAssignment({
+      assignment: { A1: '가', A2: '나' },
+      partnerGroups: [['A1', 'A2']],
+      periods: ['1회'],
+      seatHistory,
+      ruleWindow: 0,
+      pinnedStudents: new Set(),
+    });
+    expect(ok).toBe(true);
   });
 });
