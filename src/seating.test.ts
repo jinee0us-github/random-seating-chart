@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseSeat, areAdjacent } from './seating';
+import { parseSeat, areAdjacent, buildSeatOrder } from './seating';
 
 describe('parseSeat', () => {
   it('열 문자를 0-기반 인덱스로, 행을 숫자로 변환', () => {
@@ -26,5 +26,16 @@ describe('areAdjacent', () => {
   });
   it('같은 좌석은 비인접', () => {
     expect(areAdjacent('A2', 'A2')).toBe(false);
+  });
+});
+
+describe('buildSeatOrder', () => {
+  it('활성 좌석만 열→행 순서로 반환', () => {
+    const active = new Set(['A1', 'A2', 'B1', 'B2']);
+    expect(buildSeatOrder(['A', 'B'], 2, active)).toEqual(['A1', 'A2', 'B1', 'B2']);
+  });
+  it('비활성 좌석은 제외', () => {
+    const active = new Set(['A1', 'B2']);
+    expect(buildSeatOrder(['A', 'B'], 2, active)).toEqual(['A1', 'B2']);
   });
 });

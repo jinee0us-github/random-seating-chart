@@ -15,3 +15,14 @@ export function areAdjacent(a: SeatLabel, b: SeatLabel): boolean {
   if (pa.row === pb.row && Math.abs(pa.col - pb.col) === 1) return true; // 좌우
   return false;
 }
+
+export function buildSeatOrder(cols: string[], rows: number, active: Set<string>): SeatLabel[] {
+  const order: SeatLabel[] = [];
+  for (const c of cols) {
+    for (let r = 1; r <= rows; r++) {
+      const l = c + r;
+      if (active.has(l)) order.push(l);
+    }
+  }
+  return order;
+}
