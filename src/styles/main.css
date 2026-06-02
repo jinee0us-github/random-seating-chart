@@ -293,7 +293,7 @@
 .htitle .hdel:hover{opacity:1; background:rgba(239,68,68,.14);}
 
 /* ===== editorGrid 가장자리 추가 버튼 (데스크탑) ===== */
-.editor-wrap{position:relative; width:max-content; max-width:100%; margin:14px auto 0;}
+.editor-wrap{position:relative; width:max-content; max-width:100%; margin:14px auto 54px;}
 .editor-wrap .editor-grid{margin:0;}
 .edge-grp{position:absolute; display:flex; z-index:2;}
 .edge-grp.edge-col{right:-30px; top:50%; transform:translateY(-50%); flex-direction:column; gap:4px;}
@@ -306,5 +306,15 @@
 :root[data-theme="dark"] .edge-add:hover{background:#333a48;}
 @media(max-width:600px){
   .edge-grp{display:none;}
-  .editor-wrap{width:100%; margin-top:14px;}
+  .editor-wrap{width:100%; margin:14px auto 0;}
 }
+
+/* ===== +/- 색상 구분 (적녹색약 고려: + 파랑 / - 주황 · 글자 모양으로도 구분) ===== */
+.step-btn[data-action$="Plus"], .edge-add[data-action$="Plus"]{ background:#d9ecff; color:#0063a6; border-color:#7cc0f5; }
+.step-btn[data-action$="Plus"]:hover, .edge-add[data-action$="Plus"]:hover{ background:#c2e0ff; }
+.step-btn[data-action$="Minus"], .edge-add[data-action$="Minus"]{ background:#ffe6d5; color:#b5460a; border-color:#f5a877; }
+.step-btn[data-action$="Minus"]:hover, .edge-add[data-action$="Minus"]:hover{ background:#ffd6bd; }
+:root[data-theme="dark"] .step-btn[data-action$="Plus"], :root[data-theme="dark"] .edge-add[data-action$="Plus"]{ background:rgba(0,114,178,.22); color:#74b9f0; border-color:rgba(0,114,178,.55); }
+:root[data-theme="dark"] .step-btn[data-action$="Plus"]:hover, :root[data-theme="dark"] .edge-add[data-action$="Plus"]:hover{ background:rgba(0,114,178,.34); }
+:root[data-theme="dark"] .step-btn[data-action$="Minus"], :root[data-theme="dark"] .edge-add[data-action$="Minus"]{ background:rgba(213,94,0,.22); color:#f0975a; border-color:rgba(213,94,0,.55); }
+:root[data-theme="dark"] .step-btn[data-action$="Minus"]:hover, :root[data-theme="dark"] .edge-add[data-action$="Minus"]:hover{ background:rgba(213,94,0,.34); }
