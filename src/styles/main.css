@@ -210,6 +210,12 @@
   .modal-box{background:#fff; border-radius:18px; box-shadow:var(--shadow); max-width:380px; width:100%; padding:24px;}
   .modal-msg{font-size:15px; line-height:1.6; color:var(--text); margin-bottom:20px; white-space:pre-line;}
   .modal-actions{display:flex; gap:10px; justify-content:flex-end;}
+  /* 학생 선택 피커 */
+  .pick-list{display:flex; flex-direction:column; gap:6px; max-height:50vh; overflow:auto; margin-bottom:16px;}
+  .pick-item{text-align:left; border:1px solid var(--line); background:#fbfbfe; border-radius:10px; padding:10px 12px; font-size:14px; font-weight:600; color:var(--text); cursor:pointer; font-family:inherit; transition:background .12s;}
+  .pick-item:hover{background:var(--accent-soft); color:var(--accent);}
+  .pick-item.cur{border-color:var(--accent); color:var(--accent);}
+  :root[data-theme="dark"] .pick-item{background:#11141c;}
 
   /* 규칙 설정 */
   .rules{display:flex; flex-direction:column; gap:10px; margin-top:8px;}
