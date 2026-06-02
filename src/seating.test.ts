@@ -181,4 +181,16 @@ describe('buildConstraints', () => {
     expect(cs.every((c) => c(adjacent))).toBe(false);
     expect(cs.every((c) => c(apart))).toBe(true);
   });
+
+  it('합성된 술어가 같은 자리 재배정을 false 처리(히스토리 행위 검증)', () => {
+    const cs = buildConstraints({
+      ...baseArgs,
+      ruleHistoryDup: true,
+      seatHistory: { 가: ['A1'] },
+    });
+    const repeat = { A1: '가' };
+    const moved = { A2: '가' };
+    expect(cs.every((c) => c(repeat))).toBe(false);
+    expect(cs.every((c) => c(moved))).toBe(true);
+  });
 });

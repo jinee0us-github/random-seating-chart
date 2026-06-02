@@ -27,6 +27,37 @@ export function buildSeatOrder(cols: string[], rows: number, active: Set<string>
   return order;
 }
 
+// 학생별 과거 좌석을 O(1) 조회용 Set으로 변환(합성 시 1회 호출 의도).
+function buildPastSeatSets(
+  seatHistory: Record<string, SeatLabel[]>
+): Record<string, Set<SeatLabel>> {
+  const sets: Record<string, Set<SeatLabel>> = {};
+  for (const student of Object.keys(seatHistory)) {
+    sets[student] = new Set(seatHistory[student]);
+  }
+  return sets;
+}
+
+// 히스토리 검사 핵심: 미리 만든 학생별 좌석 Set으로 O(1) 조회.
+// pinnedSeats는 좌석 라벨 Set(좌석→학생 맵이 아님).
+function isHistoryOKFast(args: {
+  assignment: Assignment;
+  pastSeatSets: Record<string, Set<SeatLabel>>;
+  maleOnlySeats: Set<SeatLabel>;
+  pinnedSeats: Set<SeatLabel>;
+  ruleMaleExempt: boolean;
+}): boolean {
+  const { assignment, pastSeatSets, maleOnlySeats, pinnedSeats, ruleMaleExempt } = args;
+  for (const seat of Object.keys(assignment)) {
+    if (pinnedSeats.has(seat)) continue;
+    if (ruleMaleExempt && maleOnlySeats.has(seat)) continue;
+    const student = assignment[seat];
+    if (pastSeatSets[student]?.has(seat)) return false;
+  }
+  return true;
+}
+
+// pinnedSeats는 좌석 라벨 Set(좌석→학생 맵이 아님).
 export function isHistoryOK(args: {
   assignment: Assignment;
   seatHistory: Record<string, SeatLabel[]>;
@@ -35,13 +66,13 @@ export function isHistoryOK(args: {
   ruleMaleExempt: boolean;
 }): boolean {
   const { assignment, seatHistory, maleOnlySeats, pinnedSeats, ruleMaleExempt } = args;
-  for (const seat of Object.keys(assignment)) {
-    if (pinnedSeats.has(seat)) continue;
-    if (ruleMaleExempt && maleOnlySeats.has(seat)) continue;
-    const student = assignment[seat];
-    if ((seatHistory[student] || []).includes(seat)) return false;
-  }
-  return true;
+  return isHistoryOKFast({
+    assignment,
+    pastSeatSets: buildPastSeatSets(seatHistory),
+    maleOnlySeats,
+    pinnedSeats,
+    ruleMaleExempt,
+  });
 }
 
 export function pairKey(a: string, b: string): string {
@@ -103,11 +134,9 @@ export function isValidPartnerAssignment(args: {
   return partnerPairsOK(assignment, partnerGroups, pastPairs, pinnedStudents);
 }
 
-export function violatesSeparation(assignment: Assignment, separationGroups: string[][]): boolean {
-  const seatOf: Record<string, SeatLabel> = {};
-  for (const seat of Object.keys(assignment)) seatOf[assignment[seat]] = seat;
-  for (const group of separationGroups) {
-    const seats = group.map((name) => seatOf[name]).filter(Boolean) as SeatLabel[];
+// 그룹별 좌석 목록에서 인접한 한 쌍이라도 있으면 true(분리 위반).
+function anyGroupSeatsAdjacent(seatGroups: SeatLabel[][]): boolean {
+  for (const seats of seatGroups) {
     for (let a = 0; a < seats.length; a++) {
       for (let b = a + 1; b < seats.length; b++) {
         if (areAdjacent(seats[a], seats[b])) return true;
@@ -117,13 +146,36 @@ export function violatesSeparation(assignment: Assignment, separationGroups: str
   return false;
 }
 
+// 분리 검사 핵심: 분리 멤버 Set으로 assignment를 순방향 순회해
+// 해당 멤버의 좌석만 그룹별로 모은 뒤 인접쌍 검사.
+function violatesSeparationFast(
+  assignment: Assignment,
+  separationGroups: string[][],
+  separationMembers: Set<string>
+): boolean {
+  const seatOf: Record<string, SeatLabel> = {};
+  for (const seat of Object.keys(assignment)) {
+    const student = assignment[seat];
+    if (separationMembers.has(student)) seatOf[student] = seat;
+  }
+  const seatGroups = separationGroups.map(
+    (group) => group.map((name) => seatOf[name]).filter(Boolean) as SeatLabel[]
+  );
+  return anyGroupSeatsAdjacent(seatGroups);
+}
+
+export function violatesSeparation(assignment: Assignment, separationGroups: string[][]): boolean {
+  const separationMembers = new Set<string>(separationGroups.flat());
+  return violatesSeparationFast(assignment, separationGroups, separationMembers);
+}
+
 export type Constraint = (assignment: Assignment) => boolean;
 
 export function buildConstraints(args: {
   seatHistory: Record<string, SeatLabel[]>;
   periods: string[];
   maleOnlySeats: Set<SeatLabel>;
-  pinnedSeats: Set<SeatLabel>;
+  pinnedSeats: Set<SeatLabel>; // 좌석 라벨 Set(좌석→학생 맵이 아님)
   pinnedStudents: Set<string>;
   partnerGroups: SeatLabel[][];
   separationGroups: string[][];
@@ -133,10 +185,12 @@ export function buildConstraints(args: {
 }): Constraint[] {
   const cs: Constraint[] = [];
   if (args.ruleHistoryDup) {
+    // 학생별 과거 좌석 Set을 합성 시점 1회 구성 → 술어는 O(1) 조회.
+    const pastSeatSets = buildPastSeatSets(args.seatHistory);
     cs.push((assignment) =>
-      isHistoryOK({
+      isHistoryOKFast({
         assignment,
-        seatHistory: args.seatHistory,
+        pastSeatSets,
         maleOnlySeats: args.maleOnlySeats,
         pinnedSeats: args.pinnedSeats,
         ruleMaleExempt: args.ruleMaleExempt,
@@ -148,7 +202,9 @@ export function buildConstraints(args: {
     cs.push((assignment) => partnerPairsOK(assignment, args.partnerGroups, pastPairs, args.pinnedStudents));
   }
   if (args.separationGroups.length > 0) {
-    cs.push((assignment) => !violatesSeparation(assignment, args.separationGroups));
+    // 분리 멤버 Set을 합성 시점 1회 구성 → 술어는 assignment 순방향 순회만.
+    const separationMembers = new Set<string>(args.separationGroups.flat());
+    cs.push((assignment) => !violatesSeparationFast(assignment, args.separationGroups, separationMembers));
   }
   return cs;
 }
