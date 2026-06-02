@@ -157,6 +157,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     }
     renderPartnerChips();
     renderPinChips();
+    renderSeparation();
   }
 
   // ===== 드래그 칠하기 (좌석↔빈칸) =====
@@ -287,6 +288,41 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
       x.onclick=()=>{ delete editorPins[seat]; renderEditor(); };
       chip.appendChild(x); box.appendChild(chip);
     }
+  }
+
+  function renderSeparation(){
+    const namesBox=document.getElementById('sepNames');
+    const chipsBox=document.getElementById('sepChips');
+    if(!namesBox||!chipsBox) return;
+    const roster=parseNames(document.getElementById('maleInput').value)
+      .concat(parseNames(document.getElementById('femaleInput').value));
+    sepSelection = new Set([...sepSelection].filter(n=>roster.includes(n)));
+    namesBox.innerHTML='';
+    if(roster.length===0){ namesBox.innerHTML='<span class="hint">명단을 먼저 입력하세요.</span>'; }
+    for(const n of roster){
+      const chip=document.createElement('div');
+      chip.className='chip sep-name'+(sepSelection.has(n)?' on':'');
+      chip.textContent=n;
+      chip.onclick=()=>{ sepSelection.has(n)?sepSelection.delete(n):sepSelection.add(n); renderSeparation(); };
+      namesBox.appendChild(chip);
+    }
+    chipsBox.innerHTML='';
+    if(editorSeparation.length===0){ chipsBox.innerHTML='<span class="hint">아직 분리 그룹이 없습니다.</span>'; return; }
+    editorSeparation.forEach((g,i)=>{
+      const chip=document.createElement('div'); chip.className='chip sep';
+      const t=document.createElement('span'); t.textContent=`✂ ${i+1} · ${g.join(', ')}`;
+      chip.appendChild(t);
+      const x=document.createElement('button'); x.textContent='×';
+      x.onclick=()=>{ editorSeparation.splice(i,1); renderSeparation(); };
+      chip.appendChild(x); chipsBox.appendChild(chip);
+    });
+  }
+
+  function createSeparationGroup(){
+    const sel=[...sepSelection];
+    if(sel.length<2){ toast('분리는 2명 이상 선택하세요.'); return; }
+    editorSeparation.push(sel); sepSelection.clear(); renderSeparation();
+    toast('분리 그룹이 추가되었습니다.');
   }
 
   // ===== 설정 적용 =====
@@ -691,6 +727,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     const A={assignSeats,saveArrangement,exportImage,applySettings,loadDefaults,
       colPlus:()=>stepCol(1), colMinus:()=>stepCol(-1), rowPlus:()=>stepRow(1), rowMinus:()=>stepRow(-1),
       createGroupFromSelection,fillAllSeats,clearAllSeats,downloadRosterTemplate,exportCSV,clearHistory,toggleTheme,
+      createSeparationGroup,
       print:()=>window.print(),
       pickRoster:()=>document.getElementById('rosterFile').click(),
       pickCsv:()=>document.getElementById('csvFile').click()};
@@ -701,6 +738,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     });
     const on=(id,ev,fn)=>{ const el=document.getElementById(id); if(el) el.addEventListener(ev,fn); };
     on('colCount','input',rebuildEditor); on('rowCount','input',rebuildEditor);
+    on('maleInput','input',renderSeparation); on('femaleInput','input',renderSeparation);
     ['ruleWindow','ruleHistoryDup','ruleMaleExempt','ruleMaxTries'].forEach(id=>on(id,'change',persist));
     on('csvFile','change',importCSV); on('rosterFile','change',importRoster);
   }

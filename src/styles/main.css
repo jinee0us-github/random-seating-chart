@@ -336,3 +336,13 @@
 :root[data-theme="dark"] .seat.pinned{border-color:rgba(0,114,178,.6);}
 :root[data-theme="dark"] .chip.pin{background:rgba(0,114,178,.22); border-color:rgba(0,114,178,.55); color:#74b9f0;}
 :root[data-theme="dark"] .chip.pin button{color:#74b9f0;}
+
+/* ===== 분리(떨어뜨리기) ===== */
+.chip.sep{background:#ffe6d5; border-color:#f5a877; color:#b5460a;}
+.chip.sep button{color:#b5460a;}
+.chip.sep-name{cursor:pointer; background:#fff; border-color:var(--line); color:var(--text); user-select:none;}
+.chip.sep-name.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+:root[data-theme="dark"] .chip.sep{background:rgba(213,94,0,.22); border-color:rgba(213,94,0,.55); color:#f0975a;}
+:root[data-theme="dark"] .chip.sep button{color:#f0975a;}
+:root[data-theme="dark"] .chip.sep-name{background:var(--card); color:var(--text);}
+:root[data-theme="dark"] .chip.sep-name.on{background:var(--accent); color:#fff;}
