@@ -21,6 +21,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
   let students = [];
   let seatHistory = {};
   let periods = [];
+  let periodLayouts = [];   // 회차별 좌석 배열 스냅샷
   let currentAssignment = null;
   let displayedAssignment = null;
 
@@ -42,12 +43,6 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     return order;
   }
 
-  // ===== 초기화 =====
-  if(!loadState()){ loadDefaults(true); }
-  setDefaultMonth('periodInput');
-  attachPaintHandlers();
-  wireEvents();
-  initTheme();
 
   function loadDefaults(silent){
     document.getElementById('maleInput').value = DEFAULTS.male.join(',');
@@ -265,13 +260,11 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     const newMale = parseNames(document.getElementById('maleInput').value);
     const newFemale = parseNames(document.getElementById('femaleInput').value);
     const newOrder = buildSeatOrder(editorColumns, editorMaxRows, editorActive);
-    const structChanged = isStructureChanged();
 
     if(!silent){
       if(newMale.length + newFemale.length !== newOrder.length){
         if(!(await uiConfirm(`인원 수(${newMale.length+newFemale.length})와 좌석 수(${newOrder.length})가 다릅니다. 그래도 적용할까요? (배치 시 수가 맞아야 합니다)`))) return;
       }
-      if(structChanged && periods.length>0 && !(await uiConfirm('좌석 구조가 바뀌어 저장된 히스토리가 초기화됩니다. 계속할까요?'))) return;
     }
 
     columns = editorColumns.slice();
@@ -284,21 +277,36 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     femaleStudents = newFemale;
     students = maleStudents.concat(femaleStudents);
 
-    if(structChanged){ resetSeatHistory(); }
-    else { students.forEach(st=>{ if(!seatHistory[st]) seatHistory[st]=[]; }); }
+    students.forEach(st=>{ if(!seatHistory[st]) seatHistory[st]=[]; });   // 히스토리 유지(초기화 안 함)
     currentAssignment = null;
     renderSeatGrid(null);
     renderSeatInfo();
     showHistory();
     persist();
-    if(!silent) toast(structChanged ? '설정이 적용되었습니다.' : '명단/규칙이 적용되었습니다. (히스토리 유지)');
+    if(!silent) toast('설정이 적용되었습니다. (히스토리 유지)');
   }
 
   function parseNames(v){ return (v||'').split(',').map(s=>s.trim()).filter(Boolean); }
 
   function resetSeatHistory(){
-    seatHistory = {}; periods = [];
+    seatHistory = {}; periods = []; periodLayouts = [];
     students.forEach(s=>seatHistory[s]=[]);
+  }
+
+  // ===== 히스토리 삭제 =====
+  function deleteRound(i){
+    periods.splice(i,1); periodLayouts.splice(i,1);
+    for(const st of Object.keys(seatHistory)){ if(seatHistory[st].length>i) seatHistory[st].splice(i,1); }
+    showHistory(); persist();
+    toast('해당 회차를 삭제했습니다.');
+  }
+  async function clearHistory(){
+    if(periods.length===0){ toast('삭제할 히스토리가 없습니다.'); return; }
+    if(!(await uiConfirm('저장된 모든 히스토리를 삭제할까요? 되돌릴 수 없습니다.'))) return;
+    periods=[]; periodLayouts=[]; seatHistory={};
+    students.forEach(s=>seatHistory[s]=[]);
+    showHistory(); persist();
+    toast('히스토리를 모두 삭제했습니다.');
   }
 
   // ===== 자동 저장 (localStorage) =====
@@ -307,7 +315,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     try{
       readRules();
       const data={columns,maxRows,activeSeats:[...activeSeats],maleOnlySeats:[...maleOnlySeats],
-        partnerGroups,maleStudents,femaleStudents,seatHistory,periods,
+        partnerGroups,maleStudents,femaleStudents,seatHistory,periods,periodLayouts,
         rules:{ruleWindow,ruleHistoryDup,ruleMaleExempt,ruleMaxTries}};
       localStorage.setItem(LS_KEY, JSON.stringify(data));
     }catch(e){}
@@ -322,7 +330,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       seatOrder=buildSeatOrder(columns,maxRows,activeSeats);
       maleStudents=(d.maleStudents||[]).slice(); femaleStudents=(d.femaleStudents||[]).slice();
       students=maleStudents.concat(femaleStudents);
-      seatHistory=d.seatHistory||{}; periods=d.periods||[];
+      seatHistory=d.seatHistory||{}; periods=d.periods||[]; periodLayouts=d.periodLayouts||[];
       editorColumns=columns.slice(); editorMaxRows=maxRows;
       editorActive=new Set(activeSeats); editorMale=new Set(maleOnlySeats);
       editorPartners=partnerGroups.map(g=>g.slice()); partnerSelection.clear();
@@ -518,6 +526,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     const base = document.getElementById('periodInput').value || '회차';
     const label = nextPeriodLabel(base);
     periods.push(label);
+    periodLayouts.push({ columns: columns.slice(), maxRows, activeSeats:[...activeSeats], maleOnlySeats:[...maleOnlySeats], seatOrder: seatOrder.slice() });
     for(const seat of seatOrder){
       const st = currentAssignment[seat];
       if(!seatHistory[st]) seatHistory[st]=[];
@@ -538,22 +547,30 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     c.innerHTML = '';
     if(periods.length===0){ c.innerHTML='<div class="empty-state">아직 저장된 배치가 없습니다.</div>'; return; }
     for(let i=0;i<periods.length;i++){
+      // 회차별 좌석 배열 스냅샷 (없으면 현재 배열로 대체)
+      const L = periodLayouts[i] || { columns, maxRows, activeSeats:[...activeSeats], maleOnlySeats:[...maleOnlySeats], seatOrder };
+      const Lcols = L.columns, Lrows = L.maxRows;
+      const Lactive = new Set(L.activeSeats), Lmale = new Set(L.maleOnlySeats);
       const block = document.createElement('div'); block.className='history-block'+(i===periods.length-1?' open':'');
       const title = document.createElement('div'); title.className='htitle';
-      title.innerHTML = `<span class="badge">회차</span><span>${periods[i]}</span><span class="count">좌석 ${seatOrder.length}석</span><span class="hchev">▼</span>`;
+      title.innerHTML = `<span class="badge">회차</span><span>${periods[i]}</span><span class="count">좌석 ${L.seatOrder.length}석</span>`;
+      const del = document.createElement('button'); del.className='hdel'; del.textContent='🗑'; del.title='이 회차 삭제';
+      del.onclick = async (e)=>{ e.stopPropagation(); if(await uiConfirm(`회차 '${periods[i]}' 기록을 삭제할까요?`)) deleteRound(i); };
+      const chev = document.createElement('span'); chev.className='hchev'; chev.textContent='▼';
+      title.appendChild(del); title.appendChild(chev);
       title.onclick = ()=>block.classList.toggle('open');
       block.appendChild(title);
       const body = document.createElement('div'); body.className='history-body';
       const inner = document.createElement('div'); inner.className='history-body-inner';
       const grid = document.createElement('div'); grid.className='seat-grid';
-      grid.style.gridTemplateColumns = `repeat(${columns.length}, minmax(54px, 92px))`;
-      for(let r=1;r<=maxRows;r++){
-        for(const col of columns){
+      grid.style.gridTemplateColumns = `repeat(${Lcols.length}, minmax(54px, 92px))`;
+      for(let r=1;r<=Lrows;r++){
+        for(const col of Lcols){
           const label = col+r;
           const cell = document.createElement('div');
-          if(!activeSeats.has(label)){ cell.className='seat empty'; grid.appendChild(cell); continue; }
+          if(!Lactive.has(label)){ cell.className='seat empty'; grid.appendChild(cell); continue; }
           cell.className='seat';
-          if(maleOnlySeats.has(label)) cell.classList.add('male-only');
+          if(Lmale.has(label)) cell.classList.add('male-only');
           const lbl=document.createElement('span'); lbl.className='lbl'; lbl.textContent=label; cell.appendChild(lbl);
           const st = Object.keys(seatHistory).find(s=>seatHistory[s][i]===label);
           if(st){ const g=genderOf(st); const pill=document.createElement('span'); pill.className='name-pill '+(g||''); pill.innerHTML=(g?`<span class="gm">${g==='male'?'\u25CF':'\u25B2'}</span>`:'')+st.replace(/</g,'&lt;'); cell.appendChild(pill); }
@@ -596,6 +613,8 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       columns=d.columns; maxRows=d.maxRows; activeSeats=new Set(d.activeSeats);
       seatOrder=buildSeatOrder(columns, maxRows, activeSeats);
       periods=d.periods; seatHistory=d.seatHistory;
+      const _L={ columns: columns.slice(), maxRows, activeSeats:[...activeSeats], maleOnlySeats:[...maleOnlySeats], seatOrder: seatOrder.slice() };
+      periodLayouts = periods.map(()=>_L);
       renderSeatGrid(null); renderSeatInfo(); showHistory(); persist();
       toast(`${periods.length}개 회차를 불러왔습니다.`);
       event.target.value='';
@@ -606,7 +625,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
   function wireEvents(){
     const A={assignSeats,saveArrangement,exportImage,applySettings,loadDefaults,
       colPlus:()=>stepCol(1), colMinus:()=>stepCol(-1), rowPlus:()=>stepRow(1), rowMinus:()=>stepRow(-1),
-      createGroupFromSelection,fillAllSeats,clearAllSeats,downloadRosterTemplate,exportCSV,toggleTheme,
+      createGroupFromSelection,fillAllSeats,clearAllSeats,downloadRosterTemplate,exportCSV,clearHistory,toggleTheme,
       print:()=>window.print(),
       pickRoster:()=>document.getElementById('rosterFile').click(),
       pickCsv:()=>document.getElementById('csvFile').click()};
@@ -620,3 +639,10 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     ['ruleWindow','ruleHistoryDup','ruleMaleExempt','ruleMaxTries'].forEach(id=>on(id,'change',persist));
     on('csvFile','change',importCSV); on('rosterFile','change',importRoster);
   }
+
+  // ===== 초기화 (모든 const/함수 정의 이후 실행) =====
+  if(!loadState()){ loadDefaults(true); }
+  setDefaultMonth('periodInput');
+  attachPaintHandlers();
+  wireEvents();
+  initTheme();

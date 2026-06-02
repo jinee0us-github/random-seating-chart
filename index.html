@@ -99,7 +99,11 @@
           <button class="btn btn-soft btn-sm" data-action="clearAllSeats">전체 비우기</button>
         </div>
 
-        <div class="editor-grid" id="editorGrid"></div>
+        <div class="editor-wrap">
+          <div class="editor-grid" id="editorGrid"></div>
+          <button class="edge-add edge-col" data-action="colPlus" title="열 추가" aria-label="열 추가">＋</button>
+          <button class="edge-add edge-row" data-action="rowPlus" title="행 추가" aria-label="행 추가">＋</button>
+        </div>
 
         <div class="legend">
           <span><i class="sw" style="background:#fff;"></i> 좌석</span>
@@ -159,6 +163,7 @@
         <button class="btn btn-soft btn-sm" data-action="exportCSV">⬇️ 엑셀 내보내기</button>
         <input type="file" id="csvFile" accept=".xlsx,.xls" style="display:none">
         <button class="btn btn-soft btn-sm" data-action="pickCsv">⬆️ 엑셀 불러오기</button>
+        <button class="btn btn-soft btn-sm" data-action="clearHistory">🗑 전체 삭제</button>
       </div>
     </div>
   </section>

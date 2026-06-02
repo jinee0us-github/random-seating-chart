@@ -287,3 +287,23 @@
 :root[data-theme="dark"] .stepper{background:#11141c;}
 :root[data-theme="dark"] .step-btn{background:#2a2f3c; color:var(--text);}
 :root[data-theme="dark"] .step-btn:hover{background:#333a48;}
+
+/* ===== 히스토리 회차 삭제 버튼 ===== */
+.htitle .hdel{border:none; background:none; cursor:pointer; font-size:14px; line-height:1; opacity:.5; padding:3px 6px; border-radius:8px; transition:opacity .12s, background .12s;}
+.htitle .hdel:hover{opacity:1; background:rgba(239,68,68,.14);}
+
+/* ===== editorGrid 가장자리 추가 버튼 (데스크탑) ===== */
+.editor-wrap{position:relative; width:max-content; max-width:100%; margin:14px auto 0;}
+.editor-wrap .editor-grid{margin:0;}
+.edge-add{position:absolute; border:1.5px dashed var(--accent); background:var(--accent-soft); color:var(--accent);
+  font-size:18px; font-weight:800; line-height:1; cursor:pointer; border-radius:10px; padding:0; z-index:2;
+  display:flex; align-items:center; justify-content:center; transition:background .12s;}
+.edge-add:hover{background:#e3e6ff;}
+.edge-col{top:0; bottom:0; right:-28px; width:22px;}
+.edge-row{left:0; right:0; bottom:-28px; height:22px;}
+:root[data-theme="dark"] .edge-add{background:#2a2f3c; color:var(--text); border-color:#3a3f6a;}
+:root[data-theme="dark"] .edge-add:hover{background:#333a48;}
+@media(max-width:600px){
+  .edge-add{display:none;}
+  .editor-wrap{width:100%; margin-top:14px;}
+}
