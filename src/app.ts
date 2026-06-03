@@ -2,8 +2,9 @@
 // 진입점: 상태 + 에디터 + 배치 + 렌더 + 저장 + 이벤트 연결
 import './styles/main.css';
 import { DEFAULTS } from './config';
-import { toast, uiConfirm, uiAlert, showTab, showLoading, hideLoading, initTheme, toggleTheme } from './ui';
+import { toast, uiConfirm, uiAlert, uiSelect, showTab, showLoading, hideLoading, initTheme, toggleTheme } from './ui';
 import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryXlsx } from './excel';
+import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
 
 
   // ===== 기본값 =====
@@ -24,6 +25,11 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
   let periodLayouts = [];   // 회차별 좌석 배열 스냅샷
   let currentAssignment = null;
   let displayedAssignment = null;
+  let pinnedSeats = {};        // 고정석: { [seat]: studentName }
+  let separationGroups = [];   // 분리: string[][]
+  let slotAnim = true;         // 추첨 애니메이션 on/off
+  let swapMode = false;
+  let swapFirst = null;
 
   // 에디터 상태
   let editMode = 'seat';
@@ -33,15 +39,12 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
   let editorMale = new Set();
   let editorPartners = [];
   let partnerSelection = new Set();
+  let editorPins = {};         // 에디터 고정석 미러
+  let editorSeparation = [];   // 에디터 분리 그룹 미러
+  let sepSelection = new Set(); // 분리 섹션에서 선택된 학생 이름
 
   // ===== 유틸 =====
   function colLetter(i){ return String.fromCharCode(65 + i); }
-  
-  function buildSeatOrder(cols, rows, active){
-    const order = [];
-    for(const c of cols){ for(let r=1;r<=rows;r++){ const l=c+r; if(active.has(l)) order.push(l);} }
-    return order;
-  }
 
 
   function loadDefaults(silent){
@@ -54,6 +57,8 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       document.getElementById('ruleHistoryDup').checked = true;
       document.getElementById('ruleMaleExempt').checked = true;
       document.getElementById('ruleMaxTries').value = 2000000;
+      slotAnim = true;
+      if(document.getElementById('ruleSlotAnim')) document.getElementById('ruleSlotAnim').checked = true;
     }
     editorColumns = DEFAULTS.columns.slice();
     editorMaxRows = DEFAULTS.maxRows;
@@ -62,6 +67,9 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     editorMale = new Set();
     editorPartners = [];
     partnerSelection.clear();
+    editorPins = {};
+    editorSeparation = [];
+    sepSelection.clear();
     renderEditor();
     applySettings(true);
     if(!silent) toast('기본값을 불러왔습니다.');
@@ -114,6 +122,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     editorMale = new Set([...editorMale].filter(s=>valid.has(s)));
     editorPartners = editorPartners.map(g=>g.filter(s=>valid.has(s))).filter(g=>g.length>=2);
     partnerSelection = new Set([...partnerSelection].filter(s=>valid.has(s)));
+    editorPins = Object.fromEntries(Object.entries(editorPins).filter(([s])=>valid.has(s)));
     renderEditor();
   }
 
@@ -138,15 +147,19 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
         else if(editorMale.has(label)){ cell.classList.add('male'); }
         if(partnerSelection.has(label)) cell.classList.add('sel');
         if(pgMap[label]){ const tag=document.createElement('span'); tag.className='pg'; tag.textContent='♥'+pgMap[label]; cell.appendChild(tag); }
+        if(editorPins[label]){ cell.classList.add('pinned'); const pt=document.createElement('span'); pt.className='pin-tag'; pt.textContent='📌'+editorPins[label]; cell.appendChild(pt); }
         const hint=document.createElement('span'); hint.className='hint-tag';
         hint.textContent = isActive ? '비우기' : (editMode==='seat' ? '+ 좌석' : '빈칸');
         cell.appendChild(hint);
         cell.dataset.label = label;
         if(editMode==='male') cell.onclick = ()=>onEditorClick(label);
+        if(editMode==='pin') cell.onclick = ()=>onPinClick(label);
         grid.appendChild(cell);
       }
     }
     renderPartnerChips();
+    renderPinChips();
+    renderSeparation();
   }
 
   // ===== 드래그 칠하기 (좌석↔빈칸) =====
@@ -183,6 +196,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       editorMale = new Set([...editorMale].filter(s=>editorActive.has(s)));
       editorPartners = editorPartners.map(g=>g.filter(s=>editorActive.has(s))).filter(g=>g.length>=2);
       partnerSelection = new Set([...partnerSelection].filter(s=>editorActive.has(s)));
+      editorPins = Object.fromEntries(Object.entries(editorPins).filter(([s])=>editorActive.has(s)));
     }
     renderEditor();
   }
@@ -204,6 +218,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
         editorActive.delete(label); editorMale.delete(label);
         editorPartners = editorPartners.map(g=>g.filter(s=>s!==label)).filter(g=>g.length>=2);
         partnerSelection.delete(label);
+        delete editorPins[label];
       } else { editorActive.add(label); }
     } else if(editMode==='male'){
       if(!editorActive.has(label)){ toast('먼저 좌석으로 켜주세요.'); return; }
@@ -248,6 +263,70 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     });
   }
 
+  async function onPinClick(label){
+    if(!editorActive.has(label)){ toast('먼저 좌석으로 켜주세요.'); return; }
+    const roster = parseNames(document.getElementById('maleInput').value)
+      .concat(parseNames(document.getElementById('femaleInput').value));
+    if(roster.length===0){ toast('먼저 명단을 입력하세요.'); return; }
+    const items = [{value:'', label:'— 고정 해제 —'}].concat(roster.map(n=>({value:n,label:n})));
+    const cur = editorPins[label] || '';
+    const pick = await uiSelect(`${label} 자리에 고정할 학생`, items, cur);
+    if(pick===null) return; // 취소
+    for(const s of Object.keys(editorPins)){ if(editorPins[s]===pick) delete editorPins[s]; }
+    if(pick==='') delete editorPins[label]; else editorPins[label]=pick;
+    renderEditor();
+  }
+
+  function renderPinChips(){
+    const box=document.getElementById('pinChips'); if(!box) return;
+    box.innerHTML='';
+    const seats=Object.keys(editorPins).sort();
+    if(seats.length===0){ box.innerHTML='<span class="hint">아직 고정석이 없습니다. ④ 고정석 모드에서 좌석을 누르세요.</span>'; return; }
+    for(const seat of seats){
+      const chip=document.createElement('div'); chip.className='chip pin';
+      const t=document.createElement('span'); t.textContent=`📌 ${seat} · ${editorPins[seat]}`;
+      chip.appendChild(t);
+      const x=document.createElement('button'); x.textContent='×';
+      x.onclick=()=>{ delete editorPins[seat]; renderEditor(); };
+      chip.appendChild(x); box.appendChild(chip);
+    }
+  }
+
+  function renderSeparation(){
+    const namesBox=document.getElementById('sepNames');
+    const chipsBox=document.getElementById('sepChips');
+    if(!namesBox||!chipsBox) return;
+    const roster=parseNames(document.getElementById('maleInput').value)
+      .concat(parseNames(document.getElementById('femaleInput').value));
+    sepSelection = new Set([...sepSelection].filter(n=>roster.includes(n)));
+    namesBox.innerHTML='';
+    if(roster.length===0){ namesBox.innerHTML='<span class="hint">명단을 먼저 입력하세요.</span>'; }
+    for(const n of roster){
+      const chip=document.createElement('div');
+      chip.className='chip sep-name'+(sepSelection.has(n)?' on':'');
+      chip.textContent=n;
+      chip.onclick=()=>{ sepSelection.has(n)?sepSelection.delete(n):sepSelection.add(n); renderSeparation(); };
+      namesBox.appendChild(chip);
+    }
+    chipsBox.innerHTML='';
+    if(editorSeparation.length===0){ chipsBox.innerHTML='<span class="hint">아직 분리 그룹이 없습니다.</span>'; return; }
+    editorSeparation.forEach((g,i)=>{
+      const chip=document.createElement('div'); chip.className='chip sep';
+      const t=document.createElement('span'); t.textContent=`✂ ${i+1} · ${g.join(', ')}`;
+      chip.appendChild(t);
+      const x=document.createElement('button'); x.textContent='×';
+      x.onclick=()=>{ editorSeparation.splice(i,1); renderSeparation(); };
+      chip.appendChild(x); chipsBox.appendChild(chip);
+    });
+  }
+
+  function createSeparationGroup(){
+    const sel=[...sepSelection];
+    if(sel.length<2){ toast('분리는 2명 이상 선택하세요.'); return; }
+    editorSeparation.push(sel); sepSelection.clear(); renderSeparation();
+    toast('분리 그룹이 추가되었습니다.');
+  }
+
   // ===== 설정 적용 =====
   function isStructureChanged(){
     const eq=(a,b)=>a.length===b.length && a.every((v,i)=>v===b[i]);
@@ -276,6 +355,18 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     maleStudents = newMale;
     femaleStudents = newFemale;
     students = maleStudents.concat(femaleStudents);
+
+    // 고정석: 비활성 좌석/명단 외 학생 정리 후 commit
+    const rosterSet = new Set(students);
+    const cleanPins = {};
+    for(const seat of Object.keys(editorPins)){
+      if(editorActive.has(seat) && rosterSet.has(editorPins[seat])) cleanPins[seat]=editorPins[seat];
+    }
+    editorPins = cleanPins;
+    pinnedSeats = {...editorPins};
+    // 분리: 명단 외 이름/2명 미만 정리 후 commit
+    editorSeparation = editorSeparation.map(g=>g.filter(n=>rosterSet.has(n))).filter(g=>g.length>=2);
+    separationGroups = editorSeparation.map(g=>g.slice());
 
     students.forEach(st=>{ if(!seatHistory[st]) seatHistory[st]=[]; });   // 히스토리 유지(초기화 안 함)
     currentAssignment = null;
@@ -316,7 +407,8 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       readRules();
       const data={columns,maxRows,activeSeats:[...activeSeats],maleOnlySeats:[...maleOnlySeats],
         partnerGroups,maleStudents,femaleStudents,seatHistory,periods,periodLayouts,
-        rules:{ruleWindow,ruleHistoryDup,ruleMaleExempt,ruleMaxTries}};
+        pinnedSeats,separationGroups,
+        rules:{ruleWindow,ruleHistoryDup,ruleMaleExempt,ruleMaxTries,slotAnim}};
       localStorage.setItem(LS_KEY, JSON.stringify(data));
     }catch(e){}
   }
@@ -327,13 +419,22 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       columns=d.columns.slice(); maxRows=d.maxRows;
       activeSeats=new Set(d.activeSeats||[]); maleOnlySeats=new Set(d.maleOnlySeats||[]);
       partnerGroups=(d.partnerGroups||[]).map(g=>g.slice());
+      pinnedSeats=d.pinnedSeats||{};
+      separationGroups=(d.separationGroups||[]).map(g=>g.slice());
       seatOrder=buildSeatOrder(columns,maxRows,activeSeats);
       maleStudents=(d.maleStudents||[]).slice(); femaleStudents=(d.femaleStudents||[]).slice();
       students=maleStudents.concat(femaleStudents);
+      // 손상·구버전 저장값 방어: 비활성 좌석/명단 외 핀·분리 정리
+      const _roster=new Set(students);
+      pinnedSeats=Object.fromEntries(Object.entries(pinnedSeats).filter(([s,n])=>activeSeats.has(s)&&_roster.has(n)));
+      separationGroups=separationGroups.map(g=>g.filter(n=>_roster.has(n))).filter(g=>g.length>=2);
       seatHistory=d.seatHistory||{}; periods=d.periods||[]; periodLayouts=d.periodLayouts||[];
       editorColumns=columns.slice(); editorMaxRows=maxRows;
       editorActive=new Set(activeSeats); editorMale=new Set(maleOnlySeats);
       editorPartners=partnerGroups.map(g=>g.slice()); partnerSelection.clear();
+      editorPins={...pinnedSeats};
+      editorSeparation=separationGroups.map(g=>g.slice());
+      sepSelection.clear();
       document.getElementById('maleInput').value=maleStudents.join(',');
       document.getElementById('femaleInput').value=femaleStudents.join(',');
       document.getElementById('colCount').value=columns.length;
@@ -344,6 +445,8 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
         document.getElementById('ruleHistoryDup').checked = r.ruleHistoryDup!==false;
         document.getElementById('ruleMaleExempt').checked = r.ruleMaleExempt!==false;
         document.getElementById('ruleMaxTries').value = (r.ruleMaxTries!=null?r.ruleMaxTries:2000000);
+        slotAnim = (r.slotAnim!==false);
+        if(document.getElementById('ruleSlotAnim')) document.getElementById('ruleSlotAnim').checked = slotAnim;
       }
       renderEditor(); renderSeatGrid(null); renderSeatInfo(); showHistory();
       return true;
@@ -357,6 +460,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     const h=document.getElementById('ruleHistoryDup'); if(h) ruleHistoryDup=h.checked;
     const m=document.getElementById('ruleMaleExempt'); if(m) ruleMaleExempt=m.checked;
     const t=document.getElementById('ruleMaxTries'); if(t) ruleMaxTries=Math.max(1000, parseInt(t.value)||2000000);
+    const sa=document.getElementById('ruleSlotAnim'); if(sa) slotAnim=sa.checked;
   }
 
   // 성별 판별
@@ -381,6 +485,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
         if(!activeSeats.has(label)){ cell.className='seat empty'; grid.appendChild(cell); continue; }
         cell.className = 'seat';
         if(maleOnlySeats.has(label)) cell.classList.add('male-only');
+        if(pinnedSeats[label]) cell.classList.add('pinned');
         const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent=label; cell.appendChild(lbl);
         const nm = assignment && assignment[label];
         if(nm){
@@ -403,37 +508,56 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       `<span><i class="sw" style="background:#ccfbf1;border-color:#5eead4;"></i> ● 남학생 ${maleStudents.length}명</span>`+
       `<span><i class="sw" style="background:#fef3c7;border-color:#fcd34d;"></i> ▲ 여학생 ${femaleStudents.length}명</span>`+
       `<span><i class="sw" style="background:var(--accent-soft);border:1.5px solid #c7cbff;"></i> 남학생 전용 ${maleOnlySeats.size}석</span>`+
-      `<span>♥ 짝꿍 ${partnerGroups.length}그룹</span>`;
+      `<span>♥ 짝꿍 ${partnerGroups.length}그룹</span>`+
+      `<span>📌 고정석 ${Object.keys(pinnedSeats).length}석</span>`+
+      `<span>✂ 분리 ${separationGroups.length}그룹</span>`;
+  }
+
+  // ===== 추첨 슬롯머신 연출 =====
+  let slotHandles = [];
+  function clearSlot(){
+    for(const h of slotHandles){ if(h.k==='i') clearInterval(h.id); else clearTimeout(h.id); }
+    slotHandles = [];
+  }
+  function prefersReducedMotion(){
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+  function playSlotReveal(assignment){
+    clearSlot();
+    if(!slotAnim || prefersReducedMotion()){ renderSeatGrid(assignment, true); return; }
+    renderSeatGrid(assignment, false);
+    const pool = students.slice();
+    if(pool.length===0){ renderSeatGrid(assignment, true); return; }
+    const cells = {};
+    document.querySelectorAll('#seatGrid .seat:not(.empty)').forEach(cell=>{
+      const lbl=cell.querySelector('.lbl'); if(lbl) cells[lbl.textContent]=cell;
+    });
+    const SPIN_MS=60, STEP=70, SPIN_DUR=520;
+    let order=0;
+    for(const seat of seatOrder){
+      const cell=cells[seat]; if(!cell) continue;
+      const finalName=assignment[seat];
+      const old=cell.querySelector('.name-pill'); if(old) old.remove();
+      const pill=document.createElement('span'); pill.className='name-pill slot-spin'; pill.textContent='…';
+      cell.appendChild(pill);
+      const startId=setTimeout(()=>{
+        const iv=setInterval(()=>{ pill.textContent = pool[Math.floor(Math.random()*pool.length)] || ''; }, SPIN_MS);
+        slotHandles.push({k:'i',id:iv});
+        const stopId=setTimeout(()=>{
+          clearInterval(iv);
+          const g=genderOf(finalName);
+          pill.className='name-pill '+(g||'')+' slot-final';
+          pill.innerHTML=(g?`<span class="gm">${g==='male'?'●':'▲'}</span>`:'')+finalName.replace(/</g,'&lt;');
+        }, SPIN_DUR);
+        slotHandles.push({k:'t',id:stopId});
+      }, order*STEP);
+      slotHandles.push({k:'t',id:startId});
+      order++;
+    }
   }
 
   // ===== 알고리즘 =====
   function shuffle(a){ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a; }
-
-  function isHistoryOK(assignment){
-    for(const [seat, student] of Object.entries(assignment)){
-      if(ruleMaleExempt && maleOnlySeats.has(seat)) continue;
-      if((seatHistory[student]||[]).includes(seat)) return false;
-    }
-    return true;
-  }
-
-  function isValidPartnerAssignment(assignment){
-    const recent = Math.max(0, periods.length - ruleWindow);
-    const pastPairs = new Set();
-    for(let i=recent;i<periods.length;i++){
-      for(const group of partnerGroups){
-        const names = group.map(seat=>Object.keys(seatHistory).find(st=>seatHistory[st][i]===seat)).filter(Boolean);
-        for(let a=0;a<names.length;a++) for(let b=a+1;b<names.length;b++) pastPairs.add([names[a],names[b]].sort().join('|'));
-      }
-    }
-    for(const group of partnerGroups){
-      const names = group.map(seat=>assignment[seat]).filter(Boolean);
-      for(let a=0;a<names.length;a++) for(let b=a+1;b<names.length;b++){
-        if(pastPairs.has([names[a],names[b]].sort().join('|'))) return false;
-      }
-    }
-    return true;
-  }
 
   // ===== 이미지로 저장 (canvas, 라이브러리 불필요) =====
   function roundRect(x,px,py,w,h,r){ x.beginPath(); x.moveTo(px+r,py); x.arcTo(px+w,py,px+w,py+h,r); x.arcTo(px+w,py+h,px,py+h,r); x.arcTo(px,py+h,px,py,r); x.arcTo(px,py,px+w,py,r); x.closePath(); }
@@ -493,36 +617,96 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
   function assignSeats(){
     if(seatOrder.length===0){ toast('먼저 설정을 적용해 좌석을 만들어주세요.'); return; }
     if(students.length !== seatOrder.length){ uiAlert(`인원 수(${students.length})와 좌석 수(${seatOrder.length})가 일치해야 합니다.`); return; }
-    if(maleStudents.length < maleOnlySeats.size){ uiAlert(`남학생 전용 좌석(${maleOnlySeats.size})을 채우기에 남학생 수가 부족합니다.`); return; }
+
+    // 남전용석을 채울 남학생 수 점검(고정석 제외)
+    const pinnedMales = Object.values(pinnedSeats).filter(n=>maleStudents.includes(n)).length;
+    const openMaleSeatCount = [...maleOnlySeats].filter(s=>!(s in pinnedSeats)).length;
+    if(maleStudents.length - pinnedMales < openMaleSeatCount){
+      uiAlert(`남학생 전용 좌석(${openMaleSeatCount})을 채우기에 (고정석 제외) 남학생 수가 부족합니다.`); return;
+    }
+
+    // 고정석 사전 점검
+    for(const seat of Object.keys(pinnedSeats)){
+      const st = pinnedSeats[seat];
+      if(!students.includes(st)){ uiAlert(`고정석 ${seat}의 학생(${st})이 명단에 없습니다. 설정을 다시 적용해주세요.`); return; }
+      if(maleOnlySeats.has(seat) && femaleStudents.includes(st)){ uiAlert(`고정석 ${seat}는 남학생 전용석인데 여학생(${st})이 지정됐습니다.`); return; }
+    }
+    // 핀-핀 분리 불가 점검
+    const pinSeatOf = {}; for(const s of Object.keys(pinnedSeats)) pinSeatOf[pinnedSeats[s]]=s;
+    for(const group of separationGroups){
+      const gseats = group.map(n=>pinSeatOf[n]).filter(Boolean);
+      for(let a=0;a<gseats.length;a++) for(let b=a+1;b<gseats.length;b++){
+        if(areAdjacent(gseats[a],gseats[b])){ uiAlert(`분리 그룹의 두 학생이 고정석(${gseats[a]}, ${gseats[b]})에서 이미 인접합니다.`); return; }
+      }
+    }
 
     readRules();
+    clearSlot();
+    swapMode=false; swapFirst=null;
+    document.getElementById('swapBtn').classList.remove('active');
+    document.getElementById('seatGrid').classList.remove('swap-mode');
     showLoading();
     setTimeout(()=>{
+      const pinnedSeatSet = new Set(Object.keys(pinnedSeats));
+      const pinnedStudents = new Set(Object.values(pinnedSeats));
+      const constraints = buildConstraints({
+        seatHistory, periods, maleOnlySeats, pinnedSeats: pinnedSeatSet, pinnedStudents,
+        partnerGroups, separationGroups, ruleWindow, ruleHistoryDup, ruleMaleExempt
+      });
       const maxTries = ruleMaxTries;
       let found = false, assignment = null;
       for(let t=0;t<maxTries;t++){
         assignment = {};
-        const males = shuffle(maleStudents.slice());
-        const chosen = males.slice(0, maleOnlySeats.size);
-        let idx=0; for(const seat of maleOnlySeats) assignment[seat]=chosen[idx++];
-        const rest = seatOrder.filter(s=>!maleOnlySeats.has(s));
+        // 1) 핀 고정
+        for(const seat of Object.keys(pinnedSeats)) assignment[seat]=pinnedSeats[seat];
+        // 2) 남전용석(핀 제외) 채움
+        const openMaleSeats = [...maleOnlySeats].filter(s=>!pinnedSeatSet.has(s));
+        const used = new Set(Object.values(assignment));
+        const males = shuffle(maleStudents.filter(s=>!used.has(s)));
+        let mi=0; for(const seat of openMaleSeats) assignment[seat]=males[mi++];
+        // 3) 나머지
         const assigned = new Set(Object.values(assignment));
-        const restStudents = students.filter(s=>!assigned.has(s));
-        shuffle(restStudents);
+        const rest = seatOrder.filter(s=>!(s in assignment));
+        const restStudents = shuffle(students.filter(s=>!assigned.has(s)));
         for(let i=0;i<rest.length;i++) assignment[rest[i]]=restStudents[i];
-        if(ruleHistoryDup && !isHistoryOK(assignment)) continue;
-        if(!isValidPartnerAssignment(assignment)) continue;
+        // 4) 검증
+        if(!constraints.every(c=>c(assignment))) continue;
         found = true; break;
       }
       hideLoading();
-      if(found){ currentAssignment = assignment; renderSeatGrid(assignment, true); toast('배치 완료! 마음에 들면 저장하세요.'); }
-      else { uiAlert('조건(짝꿍 및 히스토리)을 만족하는 배치를 찾지 못했습니다. 짝꿍/히스토리 조건을 완화해보세요.'); }
+      if(found){ currentAssignment = assignment; playSlotReveal(assignment); toast('배치 완료! 마음에 들면 저장하세요.'); }
+      else { uiAlert('조건(고정석·분리·짝꿍·히스토리)을 만족하는 배치를 찾지 못했습니다. 조건을 완화해보세요.'); }
     }, 60);
+  }
+
+  function toggleSwap(){
+    if(!currentAssignment){ toast('먼저 랜덤 배치를 실행하세요.'); return; }
+    swapMode = !swapMode; swapFirst = null;
+    document.getElementById('swapBtn').classList.toggle('active', swapMode);
+    renderSeatGrid(currentAssignment);
+    // renderSeatGrid는 grid 엘리먼트 자체 클래스를 지우지 않지만, 명시적으로 1회만 설정
+    document.getElementById('seatGrid').classList.toggle('swap-mode', swapMode);
+    toast(swapMode ? '바꿀 자리 두 곳을 차례로 누르세요.' : '자리 바꾸기를 종료했습니다.');
+  }
+  function onSeatGridClick(e){
+    if(!swapMode || !currentAssignment) return;
+    const cell=e.target.closest('.seat'); if(!cell || cell.classList.contains('empty')) return;
+    const lbl=cell.querySelector('.lbl'); if(!lbl) return;
+    const seat=lbl.textContent;
+    if(!currentAssignment[seat]) return;
+    if(swapFirst===null){ swapFirst=seat; cell.classList.add('swap-sel'); return; }
+    if(swapFirst===seat){ swapFirst=null; renderSeatGrid(currentAssignment); return; }
+    const tmp=currentAssignment[swapFirst];
+    currentAssignment[swapFirst]=currentAssignment[seat];
+    currentAssignment[seat]=tmp;
+    swapFirst=null;
+    renderSeatGrid(currentAssignment);
   }
 
   // ===== 저장 / 히스토리 =====
   function saveArrangement(){
     if(!currentAssignment){ toast('랜덤 배치를 먼저 실행하세요.'); return; }
+    clearSlot();
     const base = document.getElementById('periodInput').value || '회차';
     const label = nextPeriodLabel(base);
     periods.push(label);
@@ -533,6 +717,9 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
       seatHistory[st].push(seat);
     }
     showHistory(); currentAssignment = null;
+    swapMode=false; swapFirst=null;
+    document.getElementById('swapBtn').classList.remove('active');
+    document.getElementById('seatGrid').classList.remove('swap-mode');
     persist();
     toast(`회차 ${label} 저장됨`);
   }
@@ -626,6 +813,7 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     const A={assignSeats,saveArrangement,exportImage,applySettings,loadDefaults,
       colPlus:()=>stepCol(1), colMinus:()=>stepCol(-1), rowPlus:()=>stepRow(1), rowMinus:()=>stepRow(-1),
       createGroupFromSelection,fillAllSeats,clearAllSeats,downloadRosterTemplate,exportCSV,clearHistory,toggleTheme,
+      createSeparationGroup,toggleSwap,
       print:()=>window.print(),
       pickRoster:()=>document.getElementById('rosterFile').click(),
       pickCsv:()=>document.getElementById('csvFile').click()};
@@ -636,8 +824,10 @@ import { readRosterXlsx, downloadRosterTemplate, exportHistoryXlsx, readHistoryX
     });
     const on=(id,ev,fn)=>{ const el=document.getElementById(id); if(el) el.addEventListener(ev,fn); };
     on('colCount','input',rebuildEditor); on('rowCount','input',rebuildEditor);
-    ['ruleWindow','ruleHistoryDup','ruleMaleExempt','ruleMaxTries'].forEach(id=>on(id,'change',persist));
+    on('maleInput','input',renderSeparation); on('femaleInput','input',renderSeparation);
+    ['ruleWindow','ruleHistoryDup','ruleMaleExempt','ruleMaxTries','ruleSlotAnim'].forEach(id=>on(id,'change',persist));
     on('csvFile','change',importCSV); on('rosterFile','change',importRoster);
+    document.getElementById('seatGrid').addEventListener('click', onSeatGridClick);
   }
 
   // ===== 초기화 (모든 const/함수 정의 이후 실행) =====

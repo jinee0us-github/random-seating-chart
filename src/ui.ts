@@ -27,6 +27,25 @@ export function uiAlert(msg){
       ok.onclick=done;
     });
   }
+export function uiSelect(title, items, current){
+    // items: [{value, label}], 선택 시 value(string) 반환, 취소 시 null
+    return new Promise(res=>{
+      const m=document.getElementById('pickModal');
+      document.getElementById('pickTitle').textContent=title;
+      const list=document.getElementById('pickList'); list.innerHTML='';
+      const cc=document.getElementById('pickCancel');
+      const done=v=>{ m.classList.remove('show'); list.innerHTML=''; cc.onclick=null; res(v); };
+      items.forEach(it=>{
+        const b=document.createElement('button');
+        b.className='pick-item'+(it.value===current?' cur':'');
+        b.textContent=it.label;
+        b.onclick=()=>done(it.value);
+        list.appendChild(b);
+      });
+      cc.onclick=()=>done(null);
+      m.classList.add('show');
+    });
+  }
 export function showTab(name){
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
     document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active', v.id==='view-'+name));

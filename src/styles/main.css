@@ -210,6 +210,12 @@
   .modal-box{background:#fff; border-radius:18px; box-shadow:var(--shadow); max-width:380px; width:100%; padding:24px;}
   .modal-msg{font-size:15px; line-height:1.6; color:var(--text); margin-bottom:20px; white-space:pre-line;}
   .modal-actions{display:flex; gap:10px; justify-content:flex-end;}
+  /* 학생 선택 피커 */
+  .pick-list{display:flex; flex-direction:column; gap:6px; max-height:50vh; overflow:auto; margin-bottom:16px;}
+  .pick-item{text-align:left; border:1px solid var(--line); background:#fbfbfe; border-radius:10px; padding:10px 12px; font-size:14px; font-weight:600; color:var(--text); cursor:pointer; font-family:inherit; transition:background .12s;}
+  .pick-item:hover{background:var(--accent-soft); color:var(--accent);}
+  .pick-item.cur{border-color:var(--accent); color:var(--accent);}
+  :root[data-theme="dark"] .pick-item{background:#11141c;}
 
   /* 규칙 설정 */
   .rules{display:flex; flex-direction:column; gap:10px; margin-top:8px;}
@@ -318,3 +324,34 @@
 :root[data-theme="dark"] .step-btn[data-action$="Plus"]:hover, :root[data-theme="dark"] .edge-add[data-action$="Plus"]:hover{ background:rgba(0,114,178,.34); }
 :root[data-theme="dark"] .step-btn[data-action$="Minus"], :root[data-theme="dark"] .edge-add[data-action$="Minus"]{ background:rgba(213,94,0,.22); color:#f0975a; border-color:rgba(213,94,0,.55); }
 :root[data-theme="dark"] .step-btn[data-action$="Minus"]:hover, :root[data-theme="dark"] .edge-add[data-action$="Minus"]:hover{ background:rgba(213,94,0,.34); }
+
+/* ===== 고정석 ===== */
+.ecell.pinned{border-color:#7cc0f5; background:#eaf4ff;}
+.ecell .pin-tag{position:absolute; top:2px; right:3px; font-size:8px; font-weight:800; color:#0063a6; max-width:92%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.seat.pinned{border:1.5px dashed #7cc0f5;}
+.chip.pin{background:#d9ecff; border-color:#7cc0f5; color:#0063a6;}
+.chip.pin button{color:#0063a6;}
+:root[data-theme="dark"] .ecell.pinned{background:rgba(0,114,178,.18); border-color:rgba(0,114,178,.55);}
+:root[data-theme="dark"] .ecell .pin-tag{color:#74b9f0;}
+:root[data-theme="dark"] .seat.pinned{border-color:rgba(0,114,178,.6);}
+:root[data-theme="dark"] .chip.pin{background:rgba(0,114,178,.22); border-color:rgba(0,114,178,.55); color:#74b9f0;}
+:root[data-theme="dark"] .chip.pin button{color:#74b9f0;}
+
+/* ===== 분리(떨어뜨리기) ===== */
+.chip.sep{background:#ffe6d5; border-color:#f5a877; color:#b5460a;}
+.chip.sep button{color:#b5460a;}
+.chip.sep-name{cursor:pointer; background:#fff; border-color:var(--line); color:var(--text); user-select:none;}
+.chip.sep-name.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+:root[data-theme="dark"] .chip.sep{background:rgba(213,94,0,.22); border-color:rgba(213,94,0,.55); color:#f0975a;}
+:root[data-theme="dark"] .chip.sep button{color:#f0975a;}
+:root[data-theme="dark"] .chip.sep-name{background:var(--card); color:var(--text);}
+:root[data-theme="dark"] .chip.sep-name.on{background:var(--accent); color:#fff;}
+
+/* ===== 수동 자리 교환 ===== */
+#swapBtn.active{background:var(--accent); color:#fff;}
+.seat-grid.swap-mode .seat:not(.empty){cursor:pointer;}
+.seat.swap-sel{box-shadow:0 0 0 3px var(--accent);}
+
+/* ===== 추첨 슬롯머신 ===== */
+.name-pill.slot-spin{background:var(--accent-soft); color:var(--accent); opacity:.9;}
+.name-pill.slot-final{animation:popIn .3s cubic-bezier(.2,.8,.3,1.2) both;}
