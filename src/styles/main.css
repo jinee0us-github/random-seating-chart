@@ -126,8 +126,8 @@
   .seat.male-only{border:1.5px solid #c7cbff; background:var(--accent-soft);}
   /* 성별 이름 칩 */
   .name-pill{padding:4px 12px; border-radius:999px; font-size:14px; font-weight:700; line-height:1.2;}
-  .name-pill.male{background:#ccfbf1; color:#0f766e;}
-  .name-pill.female{background:#fef3c7; color:#b45309;}
+  .name-pill.male{background:#cffafe; color:#0e7490;}
+  .name-pill.female{background:#ffedd5; color:#c2410c;}
   .name-pill .gm{font-size:9px; margin-right:4px; vertical-align:1px; opacity:.85;}
   .anim .name-pill{animation:popIn .35s cubic-bezier(.2,.8,.3,1.2) both;}
   @keyframes popIn{0%{opacity:0; transform:scale(.6) translateY(6px);}100%{opacity:1; transform:scale(1) translateY(0);}}
@@ -275,8 +275,12 @@
 :root[data-theme="dark"] .btn-soft{ background:#2a2f3c; color:var(--text); }
 :root[data-theme="dark"] .btn-soft:hover{ background:#333a48; }
 :root[data-theme="dark"] .ecell.off{ background:repeating-linear-gradient(45deg,#161922,#161922 6px,#1d2130 6px,#1d2130 12px); color:#5b6172; }
-:root[data-theme="dark"] .switch .slider{ background:#3a3f4f; }
-:root[data-theme="dark"] .seat.male-only{ border-color:#3a3f6a; }
+:root[data-theme="dark"] .switch .slider{ background:#363b4a; }
+:root[data-theme="dark"] .switch .slider:before{ background:#9aa0b4; }
+:root[data-theme="dark"] .switch input:checked + .slider{ background:#818cf8; }
+:root[data-theme="dark"] .switch input:checked + .slider:before{ background:#fff; }
+:root[data-theme="dark"] .seat.male-only{ background:rgba(129,140,248,.20); border-color:rgba(129,140,248,.7); }
+:root[data-theme="dark"] .ecell.male{ background:rgba(129,140,248,.20); border-color:rgba(129,140,248,.7); color:#aab2ff; }
 :root[data-theme="dark"] .seat.empty{ background:transparent; }
 :root[data-theme="dark"] .sw[style*="#fff"]{ background:var(--card) !important; border-color:var(--line) !important; }
 

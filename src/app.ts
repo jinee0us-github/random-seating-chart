@@ -505,8 +505,8 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     const info = document.getElementById('seatInfo');
     info.innerHTML =
       `<span>총 좌석 <b>${seatOrder.length}</b>개</span>`+
-      `<span><i class="sw" style="background:#ccfbf1;border-color:#5eead4;"></i> ● 남학생 ${maleStudents.length}명</span>`+
-      `<span><i class="sw" style="background:#fef3c7;border-color:#fcd34d;"></i> ▲ 여학생 ${femaleStudents.length}명</span>`+
+      `<span><i class="sw" style="background:#cffafe;border-color:#67e8f9;"></i> ● 남학생 ${maleStudents.length}명</span>`+
+      `<span><i class="sw" style="background:#ffedd5;border-color:#fdba74;"></i> ▲ 여학생 ${femaleStudents.length}명</span>`+
       `<span><i class="sw" style="background:var(--accent-soft);border:1.5px solid #c7cbff;"></i> 남학생 전용 ${maleOnlySeats.size}석</span>`+
       `<span>♥ 짝꿍 ${partnerGroups.length}그룹</span>`+
       `<span>📌 고정석 ${Object.keys(pinnedSeats).length}석</span>`+
@@ -593,8 +593,8 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
           const pillW=Math.min(cw-16, tw+24), pillH=30;
           const pillX=px+(cw-pillW)/2, pillY=py+(ch-pillH)/2+6;
           roundRect(x,pillX,pillY,pillW,pillH,15);
-          x.fillStyle = g==='male' ? '#ccfbf1' : (g==='female' ? '#fef3c7' : '#eef0ff'); x.fill();
-          x.fillStyle = g==='male' ? '#0f766e' : (g==='female' ? '#b45309' : '#3730a3');
+          x.fillStyle = g==='male' ? '#cffafe' : (g==='female' ? '#ffedd5' : '#eef0ff'); x.fill();
+          x.fillStyle = g==='male' ? '#0e7490' : (g==='female' ? '#c2410c' : '#3730a3');
           x.textBaseline='middle';
           x.fillText(mark+name, px+cw/2, pillY+pillH/2+1);
         }
