@@ -377,7 +377,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     if(!silent) toast('설정이 적용되었습니다. (히스토리 유지)');
   }
 
-  function parseNames(v){ return (v||'').split(',').map(s=>s.trim()).filter(Boolean); }
+  function parseNames(v){ return (v||'').split(/[\s,;]+/).map(s=>s.trim()).filter(Boolean); }
 
   function resetSeatHistory(){
     seatHistory = {}; periods = []; periodLayouts = [];
