@@ -485,7 +485,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
         const cell = document.createElement('div');
         if(!activeSeats.has(label)){ cell.className='seat empty'; grid.appendChild(cell); continue; }
         cell.className = 'seat';
-        if(maleOnlySeats.has(label)) cell.classList.add('male-only');
+        if(maleOnlySeats.has(label)){ cell.classList.add('male-only'); const mb=document.createElement('span'); mb.className='male-badge'; mb.textContent='남'; cell.appendChild(mb); }
         if(pinnedSeats[label]) cell.classList.add('pinned');
         const lbl = document.createElement('span'); lbl.className='lbl'; lbl.textContent=label; cell.appendChild(lbl);
         const nm = assignment && assignment[label];
@@ -493,7 +493,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
           const pill=document.createElement('span');
           const g=genderOf(nm);
           pill.className='name-pill '+(g||'');
-          pill.innerHTML=(g?`<span class="gm">${g==='male'?'\u25CF':'\u25B2'}</span>`:'')+nm.replace(/</g,'&lt;');
+          pill.textContent=nm;
           if(animate) pill.style.animationDelay=(order++*0.025)+'s';
           cell.appendChild(pill);
         }
@@ -506,9 +506,9 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     const info = document.getElementById('seatInfo');
     info.innerHTML =
       `<span>총 좌석 <b>${seatOrder.length}</b>개</span>`+
-      `<span><i class="sw" style="background:#cffafe;border-color:#67e8f9;"></i> ● 남학생 ${maleStudents.length}명</span>`+
-      `<span><i class="sw" style="background:#ffedd5;border-color:#fdba74;"></i> ▲ 여학생 ${femaleStudents.length}명</span>`+
-      `<span><i class="sw" style="background:var(--accent-soft);border:1.5px solid #c7cbff;"></i> 남학생 전용 ${maleOnlySeats.size}석</span>`+
+      `<span><i class="sw" style="background:#cffafe;border-color:#67e8f9;"></i> 남학생 ${maleStudents.length}명</span>`+
+      `<span><i class="sw" style="background:#ffedd5;border-color:#fdba74;"></i> 여학생 ${femaleStudents.length}명</span>`+
+      `<span><i class="sw" style="background:transparent;border:1.5px solid #5ed3e0;"></i> 남학생 전용 ${maleOnlySeats.size}석</span>`+
       `<span>♥ 짝꿍 ${partnerGroups.length}그룹</span>`+
       `<span>📌 고정석 ${Object.keys(pinnedSeats).length}석</span>`+
       `<span>✂ 분리 ${separationGroups.length}그룹</span>`;
@@ -548,7 +548,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
           clearInterval(iv);
           const g=genderOf(finalName);
           pill.className='name-pill '+(g||'')+' slot-final';
-          pill.innerHTML=(g?`<span class="gm">${g==='male'?'●':'▲'}</span>`:'')+finalName.replace(/</g,'&lt;');
+          pill.textContent=finalName;
         }, SPIN_DUR);
         slotHandles.push({k:'t',id:stopId});
       }, order*STEP);
@@ -581,23 +581,23 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
         if(!activeSeats.has(label)) continue;
         const px=pad+ci*(cw+gap), py=headerH+pad+r*(ch+gap);
         let bg='#ffffff', bd='#e8eaf2';
-        if(maleOnlySeats.has(label)){ bg='#eef0ff'; bd='#c7cbff'; }
+        if(maleOnlySeats.has(label)){ bd='#5ed3e0'; }
         roundRect(x,px,py,cw,ch,14); x.fillStyle=bg; x.fill(); x.lineWidth=1.5; x.strokeStyle=bd; x.stroke();
         x.fillStyle='#9aa0b4'; x.font='bold 11px sans-serif'; x.textAlign='left'; x.textBaseline='middle';
         x.fillText(label, px+10, py+14);
+        if(maleOnlySeats.has(label)){ x.save(); x.fillStyle='#0e7490'; x.font='bold 11px sans-serif'; x.textAlign='right'; x.textBaseline='alphabetic'; x.globalAlpha=0.8; x.fillText('남', px+cw-10, py+ch-9); x.restore(); }
         const name=a[label]||'';
         if(name){
           const g=genderOf(name);
-          const mark = g==='male' ? '● ' : (g==='female' ? '▲ ' : '');
           x.font='bold 16px sans-serif'; x.textAlign='center';
-          const tw=x.measureText(mark+name).width;
+          const tw=x.measureText(name).width;
           const pillW=Math.min(cw-16, tw+24), pillH=30;
           const pillX=px+(cw-pillW)/2, pillY=py+(ch-pillH)/2+6;
           roundRect(x,pillX,pillY,pillW,pillH,15);
           x.fillStyle = g==='male' ? '#cffafe' : (g==='female' ? '#ffedd5' : '#eef0ff'); x.fill();
           x.fillStyle = g==='male' ? '#0e7490' : (g==='female' ? '#c2410c' : '#3730a3');
           x.textBaseline='middle';
-          x.fillText(mark+name, px+cw/2, pillY+pillH/2+1);
+          x.fillText(name, px+cw/2, pillY+pillH/2+1);
         }
       }
     }
@@ -761,7 +761,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
           if(Lmale.has(label)) cell.classList.add('male-only');
           const lbl=document.createElement('span'); lbl.className='lbl'; lbl.textContent=label; cell.appendChild(lbl);
           const st = Object.keys(seatHistory).find(s=>seatHistory[s][i]===label);
-          if(st){ const g=genderOf(st); const pill=document.createElement('span'); pill.className='name-pill '+(g||''); pill.innerHTML=(g?`<span class="gm">${g==='male'?'\u25CF':'\u25B2'}</span>`:'')+st.replace(/</g,'&lt;'); cell.appendChild(pill); }
+          if(st){ const g=genderOf(st); const pill=document.createElement('span'); pill.className='name-pill '+(g||''); pill.textContent=st; cell.appendChild(pill); }
           grid.appendChild(cell);
         }
       }

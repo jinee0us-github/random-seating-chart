@@ -122,13 +122,13 @@
   .seat:not(.empty):hover{transform:translateY(-3px); box-shadow:var(--shadow);}
   .seat .lbl{position:absolute; top:5px; left:8px; font-size:10px; font-weight:700; color:var(--muted); opacity:.6;}
   .seat.empty{background:transparent; border:none; box-shadow:none; min-height:0;}
-  /* 남학생 전용 좌석: 색상만으로 표시 (텍스트 없음) */
-  .seat.male-only{border:1.5px solid #c7cbff; background:var(--accent-soft);}
+  /* 남학생 전용 좌석: 채움 없이 테두리 + 흐린 "남" 배지 (앱과 동일) */
+  .seat.male-only{border-color:#5ed3e0;}
+  .seat .male-badge{position:absolute; bottom:4px; right:7px; font-size:10px; font-weight:800; color:#0e7490; opacity:.8; pointer-events:none;}
   /* 성별 이름 칩 */
   .name-pill{padding:4px 12px; border-radius:999px; font-size:14px; font-weight:700; line-height:1.2;}
   .name-pill.male{background:#cffafe; color:#0e7490;}
   .name-pill.female{background:#ffedd5; color:#c2410c;}
-  .name-pill .gm{font-size:9px; margin-right:4px; vertical-align:1px; opacity:.85;}
   .anim .name-pill{animation:popIn .35s cubic-bezier(.2,.8,.3,1.2) both;}
   @keyframes popIn{0%{opacity:0; transform:scale(.6) translateY(6px);}100%{opacity:1; transform:scale(1) translateY(0);}}
 
@@ -279,7 +279,8 @@
 :root[data-theme="dark"] .switch .slider:before{ background:#9aa0b4; }
 :root[data-theme="dark"] .switch input:checked + .slider{ background:#818cf8; }
 :root[data-theme="dark"] .switch input:checked + .slider:before{ background:#fff; }
-:root[data-theme="dark"] .seat.male-only{ background:rgba(129,140,248,.20); border-color:rgba(129,140,248,.7); }
+:root[data-theme="dark"] .seat.male-only{ border-color:#1c6b78; }
+:root[data-theme="dark"] .seat .male-badge{ color:#67e8f9; }
 :root[data-theme="dark"] .ecell.male{ background:#0c3a43; border-color:#1c6b78; color:#67e8f9; }
 :root[data-theme="dark"] .seat.empty{ background:transparent; }
 :root[data-theme="dark"] .sw[style*="#fff"]{ background:var(--card) !important; border-color:var(--line) !important; }
@@ -289,6 +290,7 @@
 /* 배치 범례 스와치 다크 (성별 칩 배경과 일치) */
 :root[data-theme="dark"] .sw[style*="#cffafe"]{ background:#0c3a43 !important; border-color:#1c6b78 !important; }
 :root[data-theme="dark"] .sw[style*="#ffedd5"]{ background:#3a2410 !important; border-color:#7c4a1e !important; }
+:root[data-theme="dark"] .sw[style*="#5ed3e0"]{ border-color:#1c6b78 !important; }
 /* 토스트 다크 */
 :root[data-theme="dark"] .toast{ background:#2a2f3c; }
 
