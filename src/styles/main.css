@@ -149,7 +149,7 @@
   /* 드래그 칠하기: 모드에서 스크롤 방지 + painting 강조 */
   .editor-grid.drag-mode{touch-action:none;}
   .editor-grid.painting .ecell{transition:none;}
-  .ecell.male{background:var(--accent-soft); border-color:#c7cbff; color:var(--accent);}
+  .ecell.male{background:#cffafe; border-color:#5ed3e0; color:#0e7490; font-weight:800;}
   .ecell.sel{box-shadow:0 0 0 3px var(--accent); }
   .ecell .pg{position:absolute; bottom:3px; right:5px; font-size:9px; color:var(--partner-line); font-weight:800;}
 
@@ -280,7 +280,7 @@
 :root[data-theme="dark"] .switch input:checked + .slider{ background:#818cf8; }
 :root[data-theme="dark"] .switch input:checked + .slider:before{ background:#fff; }
 :root[data-theme="dark"] .seat.male-only{ background:rgba(129,140,248,.20); border-color:rgba(129,140,248,.7); }
-:root[data-theme="dark"] .ecell.male{ background:rgba(129,140,248,.20); border-color:rgba(129,140,248,.7); color:#aab2ff; }
+:root[data-theme="dark"] .ecell.male{ background:#0c3a43; border-color:#1c6b78; color:#67e8f9; }
 :root[data-theme="dark"] .seat.empty{ background:transparent; }
 :root[data-theme="dark"] .sw[style*="#fff"]{ background:var(--card) !important; border-color:var(--line) !important; }
 /* 성별 이름 칩 다크 (app darkColors와 동일) */
@@ -303,8 +303,8 @@
 .step-btn:hover{background:#e3e6ff;}
 .step-btn:active{background:#d7dbff;}
 :root[data-theme="dark"] .stepper{background:#11141c;}
-:root[data-theme="dark"] .step-btn{background:#2a2f3c; color:var(--text);}
-:root[data-theme="dark"] .step-btn:hover{background:#333a48;}
+:root[data-theme="dark"] .step-btn{background:var(--accent-soft); color:var(--accent);}
+:root[data-theme="dark"] .step-btn:hover{background:#30354c;}
 
 /* ===== 히스토리 회차 삭제 버튼 ===== */
 .htitle .hdel{border:none; background:none; cursor:pointer; font-size:14px; line-height:1; opacity:.5; padding:3px 6px; border-radius:8px; transition:opacity .12s, background .12s;}
@@ -320,22 +320,12 @@
   font-size:16px; font-weight:800; line-height:1; cursor:pointer; border-radius:8px; padding:0;
   display:flex; align-items:center; justify-content:center; transition:background .12s;}
 .edge-add:hover{background:#e3e6ff;}
-:root[data-theme="dark"] .edge-add{background:#2a2f3c; color:var(--text); border-color:#3a3f6a;}
-:root[data-theme="dark"] .edge-add:hover{background:#333a48;}
+:root[data-theme="dark"] .edge-add{background:var(--accent-soft); color:var(--accent); border-color:var(--accent);}
+:root[data-theme="dark"] .edge-add:hover{background:#30354c;}
 @media(max-width:600px){
   .edge-grp{display:none;}
   .editor-wrap{width:100%; margin:14px auto 0;}
 }
-
-/* ===== +/- 색상 구분 (적녹색약 고려: + 파랑 / - 주황 · 글자 모양으로도 구분) ===== */
-.step-btn[data-action$="Plus"], .edge-add[data-action$="Plus"]{ background:#d9ecff; color:#0063a6; border-color:#7cc0f5; }
-.step-btn[data-action$="Plus"]:hover, .edge-add[data-action$="Plus"]:hover{ background:#c2e0ff; }
-.step-btn[data-action$="Minus"], .edge-add[data-action$="Minus"]{ background:#ffe6d5; color:#b5460a; border-color:#f5a877; }
-.step-btn[data-action$="Minus"]:hover, .edge-add[data-action$="Minus"]:hover{ background:#ffd6bd; }
-:root[data-theme="dark"] .step-btn[data-action$="Plus"], :root[data-theme="dark"] .edge-add[data-action$="Plus"]{ background:rgba(0,114,178,.22); color:#74b9f0; border-color:rgba(0,114,178,.55); }
-:root[data-theme="dark"] .step-btn[data-action$="Plus"]:hover, :root[data-theme="dark"] .edge-add[data-action$="Plus"]:hover{ background:rgba(0,114,178,.34); }
-:root[data-theme="dark"] .step-btn[data-action$="Minus"], :root[data-theme="dark"] .edge-add[data-action$="Minus"]{ background:rgba(213,94,0,.22); color:#f0975a; border-color:rgba(213,94,0,.55); }
-:root[data-theme="dark"] .step-btn[data-action$="Minus"]:hover, :root[data-theme="dark"] .edge-add[data-action$="Minus"]:hover{ background:rgba(213,94,0,.34); }
 
 /* ===== 고정석 ===== */
 .ecell.pinned{border-color:#7cc0f5; background:#eaf4ff;}

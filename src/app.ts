@@ -141,10 +141,11 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
         const label = col+r;
         const cell = document.createElement('div');
         cell.className = 'ecell';
-        const txt = document.createElement('span'); txt.textContent = label; cell.appendChild(txt);
         const isActive = editorActive.has(label);
+        const isMale = isActive && editorMale.has(label);
+        const txt = document.createElement('span'); txt.className='ecell-mark'; if(isMale) txt.textContent='남'; cell.appendChild(txt);
         if(!isActive){ cell.classList.add('off'); }
-        else if(editorMale.has(label)){ cell.classList.add('male'); }
+        else if(isMale){ cell.classList.add('male'); }
         if(partnerSelection.has(label)) cell.classList.add('sel');
         if(pgMap[label]){ const tag=document.createElement('span'); tag.className='pg'; tag.textContent='♥'+pgMap[label]; cell.appendChild(tag); }
         if(editorPins[label]){ cell.classList.add('pinned'); const pt=document.createElement('span'); pt.className='pin-tag'; pt.textContent='📌'+editorPins[label]; cell.appendChild(pt); }
