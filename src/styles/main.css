@@ -283,6 +283,14 @@
 :root[data-theme="dark"] .ecell.male{ background:rgba(129,140,248,.20); border-color:rgba(129,140,248,.7); color:#aab2ff; }
 :root[data-theme="dark"] .seat.empty{ background:transparent; }
 :root[data-theme="dark"] .sw[style*="#fff"]{ background:var(--card) !important; border-color:var(--line) !important; }
+/* 성별 이름 칩 다크 (app darkColors와 동일) */
+:root[data-theme="dark"] .name-pill.male{ background:#0c3a43; color:#67e8f9; }
+:root[data-theme="dark"] .name-pill.female{ background:#3a2410; color:#fdba74; }
+/* 배치 범례 스와치 다크 (성별 칩 배경과 일치) */
+:root[data-theme="dark"] .sw[style*="#cffafe"]{ background:#0c3a43 !important; border-color:#1c6b78 !important; }
+:root[data-theme="dark"] .sw[style*="#ffedd5"]{ background:#3a2410 !important; border-color:#7c4a1e !important; }
+/* 토스트 다크 */
+:root[data-theme="dark"] .toast{ background:#2a2f3c; }
 
 /* ===== 행/열 스텝퍼 ===== */
 .stepper{display:inline-flex; align-items:stretch; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fbfbfe;}
