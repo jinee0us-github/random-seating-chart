@@ -24,6 +24,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
   let periods = [];
   let periodLayouts = [];   // 회차별 좌석 배열 스냅샷
   let currentAssignment = null;
+  let prevAssignment = null;   // 되돌리기용 직전 배치 1단계
   let displayedAssignment = null;
   let pinnedSeats = {};        // 고정석: { [seat]: studentName }
   let separationGroups = [];   // 분리: string[][]
@@ -417,7 +418,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     separationGroups = editorSeparation.map(g=>g.slice());
 
     students.forEach(st=>{ if(!seatHistory[st]) seatHistory[st]=[]; });   // 히스토리 유지(초기화 안 함)
-    currentAssignment = null;
+    currentAssignment = null; prevAssignment = null;
     renderSeatGrid(null);
     renderSeatInfo();
     showHistory();
@@ -559,6 +560,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
       `<span>♥ 짝꿍 ${partnerGroups.length}그룹</span>`+
       `<span>📌 고정석 ${Object.keys(pinnedSeats).length}석</span>`+
       `<span>✂ 분리 ${separationGroups.length}그룹</span>`;
+    updateActionButtons();
   }
 
   // ===== 추첨 슬롯머신 연출 =====
@@ -722,7 +724,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
         found = true; break;
       }
       hideLoading();
-      if(found){ currentAssignment = assignment; playSlotReveal(assignment); toast('배치 완료! 마음에 들면 저장하세요.'); }
+      if(found){ prevAssignment = currentAssignment; currentAssignment = assignment; playSlotReveal(assignment); updateActionButtons(); toast('배치 완료! 마음에 들면 저장하세요.'); }
       else { uiAlert('조건(고정석·분리·짝꿍·히스토리)을 만족하는 배치를 찾지 못했습니다. 조건을 완화해보세요.'); }
     }, 60);
   }
@@ -764,10 +766,11 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
       if(!seatHistory[st]) seatHistory[st]=[];
       seatHistory[st].push(seat);
     }
-    showHistory(); currentAssignment = null;
+    showHistory(); currentAssignment = null; prevAssignment = null;
     swapMode=false; swapFirst=null;
     document.getElementById('swapBtn').classList.remove('active');
     document.getElementById('seatGrid').classList.remove('swap-mode');
+    updateActionButtons();
     persist();
     toast(`회차 ${label} 저장됨`);
   }
@@ -861,7 +864,8 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     const A={assignSeats,saveArrangement,exportImage,applySettings,loadDefaults,
       colPlus:()=>stepCol(1), colMinus:()=>stepCol(-1), rowPlus:()=>stepRow(1), rowMinus:()=>stepRow(-1),
       createGroupFromSelection,fillAllSeats,clearAllSeats,downloadRosterTemplate,exportCSV,clearHistory,toggleTheme,
-      createSeparationGroup,toggleSwap,
+      createSeparationGroup,toggleSwap,undoArrangement,toggleAdvanced,
+      goSetup:()=>showTab('admin'),
       print:()=>window.print(),
       pickRoster:()=>document.getElementById('rosterFile').click(),
       pickCsv:()=>document.getElementById('csvFile').click()};
@@ -876,6 +880,41 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     ['ruleWindow','ruleHistoryDup','ruleMaleExempt','ruleMaxTries','ruleSlotAnim'].forEach(id=>on(id,'change',persist));
     on('csvFile','change',importCSV); on('rosterFile','change',importRoster);
     document.getElementById('seatGrid').addEventListener('click', onSeatGridClick);
+  }
+
+  // ===== 배치 화면 버튼/안내 상태 =====
+  function updateActionButtons(){
+    const empty = students.length === 0;
+    const notice = document.getElementById('rosterEmptyNotice');
+    if(notice) notice.hidden = !empty;
+    const assignBtn = document.getElementById('assignBtn');
+    if(assignBtn){ assignBtn.disabled = empty; assignBtn.title = empty ? '명단을 먼저 설정하세요' : ''; }
+    const undoBtn = document.getElementById('undoBtn');
+    if(undoBtn) undoBtn.style.display = prevAssignment ? 'inline-flex' : 'none';
+  }
+
+  // ===== 직전 배치로 되돌리기 (1단계) =====
+  function undoArrangement(){
+    if(!prevAssignment){ toast('되돌릴 이전 배치가 없습니다.'); return; }
+    clearSlot();
+    currentAssignment = prevAssignment;
+    prevAssignment = null;
+    swapMode = false; swapFirst = null;
+    document.getElementById('swapBtn').classList.remove('active');
+    document.getElementById('seatGrid').classList.remove('swap-mode');
+    renderSeatGrid(currentAssignment, true);
+    updateActionButtons();
+    toast('이전 배치로 되돌렸습니다.');
+  }
+
+  // ===== 고급 설정 접기/펼치기 =====
+  function toggleAdvanced(){
+    const t = document.getElementById('advToggle');
+    const c = document.getElementById('advCollapse');
+    if(!t || !c) return;
+    const open = c.classList.toggle('open');
+    t.classList.toggle('open', open);
+    t.setAttribute('aria-expanded', open ? 'true' : 'false');
   }
 
   // ===== 초기화 (모든 const/함수 정의 이후 실행) =====
