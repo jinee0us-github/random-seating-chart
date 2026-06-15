@@ -54,7 +54,17 @@
       <div class="toolbar" style="margin-bottom:18px;">
         <div class="col">
           <label class="fld" style="margin:0;">회차(월) 선택</label>
-          <input type="month" id="periodInput" style="width:170px;">
+          <div class="month-field">
+            <input type="text" id="periodInput" readonly autocomplete="off" aria-haspopup="dialog" style="width:170px;">
+            <div class="month-pop" id="monthPop" role="dialog" aria-label="회차 월 선택" hidden>
+              <div class="month-pop-head">
+                <button type="button" class="month-nav" id="monthPrev" aria-label="이전 해">◀</button>
+                <span class="month-year" id="monthYear"></span>
+                <button type="button" class="month-nav" id="monthNext" aria-label="다음 해">▶</button>
+              </div>
+              <div class="month-grid" id="monthGrid"></div>
+            </div>
+          </div>
         </div>
         <button class="btn btn-primary" data-action="assignSeats">🎲 랜덤 배치</button>
         <button class="btn btn-ghost" data-action="saveArrangement">💾 저장하기</button>
