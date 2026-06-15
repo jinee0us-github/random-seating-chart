@@ -42,7 +42,7 @@
 
   <nav class="tabs">
     <button class="tab-btn active" data-tab="place">🎲 배치</button>
-    <button class="tab-btn" data-tab="admin">⚙️ 관리자 설정</button>
+    <button class="tab-btn" data-tab="admin">⚙️ 명단·좌석</button>
     <button class="tab-btn" data-tab="rules">📐 규칙 설정</button>
     <button class="tab-btn" data-tab="history">📜 히스토리</button>
   </nav>
@@ -51,6 +51,14 @@
   <section class="view active" id="view-place">
     <div class="card">
       <h2><span class="dot"></span>자리 배치</h2>
+      <div class="notice" id="rosterEmptyNotice" hidden>
+        <span class="notice-ico">💡</span>
+        <div class="notice-txt">
+          <b>먼저 명단과 좌석을 설정하세요.</b>
+          <span>학생 명단이 비어 있어 자리를 배치할 수 없어요.</span>
+        </div>
+        <button class="btn btn-primary btn-sm" data-action="goSetup">명단·좌석 설정하러 가기 →</button>
+      </div>
       <div class="toolbar" style="margin-bottom:18px;">
         <div class="col">
           <label class="fld" style="margin:0;">회차(월) 선택</label>
@@ -66,9 +74,10 @@
             </div>
           </div>
         </div>
-        <button class="btn btn-primary" data-action="assignSeats">🎲 랜덤 배치</button>
+        <button class="btn btn-primary" data-action="assignSeats" id="assignBtn">🎲 랜덤 배치</button>
         <button class="btn btn-ghost" data-action="saveArrangement">💾 저장하기</button>
         <button class="btn btn-soft" data-action="toggleSwap" id="swapBtn">🔄 자리 바꾸기</button>
+        <button class="btn btn-soft" data-action="undoArrangement" id="undoBtn" style="display:none;">↩️ 되돌리기</button>
         <button class="btn btn-soft" data-action="exportImage">🖼️ 이미지 저장</button>
         <button class="btn btn-soft" data-action="print">🖨️ 인쇄</button>
       </div>
@@ -152,21 +161,31 @@
           <span><i class="sw" style="background:#f3f4f9; border-style:dashed;"></i> 빈칸(좌석 아님)</span>
         </div>
 
-        <div style="margin-top:16px;">
-          <label class="fld">짝꿍 그룹</label>
-          <div class="chips" id="partnerChips"></div>
-        </div>
+        <div class="adv-section">
+          <button type="button" class="section-toggle" data-action="toggleAdvanced" id="advToggle" aria-expanded="false" aria-controls="advCollapse">
+            <span>고급 설정 — 짝꿍 · 고정석 · 분리</span>
+            <span class="chev">▼</span>
+          </button>
+          <div class="collapse" id="advCollapse">
+            <div class="collapse-inner">
+              <div>
+                <label class="fld">짝꿍 그룹</label>
+                <div class="chips" id="partnerChips"></div>
+              </div>
 
-        <div style="margin-top:16px;">
-          <label class="fld">고정석 (특정 학생을 특정 자리에 고정)</label>
-          <div class="chips" id="pinChips"></div>
-        </div>
+              <div style="margin-top:16px;">
+                <label class="fld">고정석 (특정 학생을 특정 자리에 고정)</label>
+                <div class="chips" id="pinChips"></div>
+              </div>
 
-        <div style="margin-top:16px;">
-          <label class="fld">분리 (떨어뜨리기) — 같은 그룹은 좌우·앞뒤로 안 붙음</label>
-          <div class="chips" id="sepNames"></div>
-          <button class="btn btn-ghost btn-sm" data-action="createSeparationGroup" style="margin-top:8px;">선택한 학생 분리 묶기</button>
-          <div class="chips" id="sepChips"></div>
+              <div style="margin-top:16px;">
+                <label class="fld">분리 (떨어뜨리기) — 같은 그룹은 좌우·앞뒤로 안 붙음</label>
+                <div class="chips" id="sepNames"></div>
+                <button class="btn btn-ghost btn-sm" data-action="createSeparationGroup" style="margin-top:8px;">선택한 학생 분리 묶기</button>
+                <div class="chips" id="sepChips"></div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
