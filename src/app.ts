@@ -81,6 +81,53 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
     el.value = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
   }
 
+  // 커스텀 월 선택 팝업 (Safari는 input[type=month] 네이티브 피커 미지원)
+  function setupMonthPicker(){
+    const input = document.getElementById('periodInput');
+    const pop   = document.getElementById('monthPop');
+    const grid  = document.getElementById('monthGrid');
+    const yearLabel = document.getElementById('monthYear');
+    const prevBtn = document.getElementById('monthPrev');
+    const nextBtn = document.getElementById('monthNext');
+    if(!input || !pop || !grid || !yearLabel || !prevBtn || !nextBtn) return;
+
+    let viewYear = new Date().getFullYear();
+    const parseValue = ()=>{
+      const m = /^(\d{4})-(\d{2})/.exec(input.value || '');
+      return m ? { year:+m[1], month:+m[2] } : null;
+    };
+    const render = ()=>{
+      const sel = parseValue();
+      yearLabel.textContent = `${viewYear}년`;
+      grid.innerHTML = '';
+      for(let mth=1; mth<=12; mth++){
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'month-cell';
+        cell.textContent = `${mth}월`;
+        if(sel && sel.year===viewYear && sel.month===mth) cell.classList.add('sel');
+        cell.addEventListener('click', ()=>{
+          input.value = `${viewYear}-${String(mth).padStart(2,'0')}`;
+          pop.hidden = true;
+        });
+        grid.appendChild(cell);
+      }
+    };
+    const open = ()=>{ const sel = parseValue(); viewYear = sel ? sel.year : new Date().getFullYear(); render(); pop.hidden = false; };
+    const toggle = ()=>{ pop.hidden ? open() : (pop.hidden = true); };
+
+    input.addEventListener('click', toggle);
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); }
+      else if(e.key==='Escape'){ pop.hidden = true; }
+    });
+    prevBtn.addEventListener('click', ()=>{ viewYear--; render(); });
+    nextBtn.addEventListener('click', ()=>{ viewYear++; render(); });
+    document.addEventListener('click', e=>{
+      if(!pop.hidden && !e.target.closest('.month-field')) pop.hidden = true;
+    });
+  }
+
   // ===== 탭 전환 =====
   
 
@@ -834,6 +881,7 @@ import { buildSeatOrder, buildConstraints, areAdjacent } from './seating';
   // ===== 초기화 (모든 const/함수 정의 이후 실행) =====
   if(!loadState()){ loadDefaults(true); }
   setDefaultMonth('periodInput');
+  setupMonthPicker();
   attachPaintHandlers();
   wireEvents();
   initTheme();
